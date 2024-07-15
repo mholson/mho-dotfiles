@@ -6,15 +6,21 @@
 * Issues
 * Environment Setup
 ** Windows
+*** Size
 Proportionally resize the size of the window.
 #+begin_src emacs-lisp
 (setq-default window-combination-resize t)
 #+end_src
-
 Setting up the default frame size
 #+begin_src emacs-lisp
 (add-to-list 'default-frame-alist '(height . 34))
 (add-to-list 'default-frame-alist '(width  . 80))
+#+end_src
+*** Line Numbers
+This determines the style of line numbers in effect. If set to `nil', line
+numbers appear. However, I prefer relative line numbers.
+#+begin_src emacs-lisp
+(setq display-line-numbers-type 'relative)
 #+end_src
 ** Cursor
 Stretch the width of the block cursor to match the width of the glyph.
