@@ -19,8 +19,14 @@ the modifier keys such that:
       mac-function-modifier 'hyper)
 #+end_src
 ** Themes
+I really like working in dark-mode using the doom-nord-aurora theme.
+#+begin_src emacs-lisp
+(setq doom-theme 'doom-nord-aurora)
+#+end_src
+
 * Packages
 ** Convenience
+*** Global Keybindings
 ** Tools
 * Languages
 ** LaTeX
