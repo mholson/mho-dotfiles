@@ -7,6 +7,17 @@
 * Environment Setup
 ** Fonts
 ** Keyboard
+Since I am using using an Apple Swedish keyboard, it makes sence to define
+the modifier keys such that:
+- the option key can still be used to access commonly used symbols, and
+- the meta and control keys are easily accessible with the thumbs.
+#+begin_src emacs-lisp
+(setq mac-option-modifier nil
+      mac-command-modifier 'meta
+      mac-right-command-modifier 'control
+      mac-control-modifier 'super
+      mac-function-modifier 'hyper)
+#+end_src
 ** Themes
 * Packages
 ** Convenience
