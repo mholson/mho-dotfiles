@@ -16,9 +16,10 @@ Stretch the width of the block cursor to match the width of the glyph.
 (setq-default x-stretch-cursor t)
 #+end_src
 ** Files
-Sending deleted files to the trash...just in case.
+Sending deleted files to the trash and use auto-save ... just in case.
 #+begin_src emacs-lisp
 (setq-default delete-by-moving-to-trash t)
+(setq auto-save-default t)
 #+end_src
 ** Fonts
 ** Keyboard
