@@ -34,6 +34,27 @@ Sending deleted files to the trash and use auto-save ... just in case.
 (setq auto-save-default t)
 #+end_src
 ** Fonts
+Doom exposes five variables for controlling fonts.
+*** Doom Primary Font
+I rather like the SF Mono font.
+#+begin_src emacs-lisp
+(setq doom-font (font-spec :family "SF Mono" :size 21 ))
+#+end_src
+I also want to be able to insert SF Symbol fonts via
+~completing-read~.
+
+#+begin_src emacs-lisp
+(set-fontset-font t nil "SF Pro Display" nil 'append)
+(load! "lisp/sf.el")
+#+end_src
+*** Doom Variable Pitch Font
+*** Doom Big Font
+Let's Double the size for the Big Font.
+#+begin_src emacs-lisp
+(setq doom-big-font (font-spec :family "SF Mono" :size 42 ))
+#+end_src
+*** Doom Symbol Font
+*** Doom Serif Font
 ** Keyboard
 Since I am using using an Apple Swedish keyboard, it makes sence to define
 the modifier keys such that:
