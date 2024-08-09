@@ -33,6 +33,10 @@ Sending deleted files to the trash and use auto-save ... just in case.
 (setq-default delete-by-moving-to-trash t)
 (setq auto-save-default t)
 #+end_src
+Raising the undo limit to 80Mb
+#+begin_src emacs-lisp
+(setq undo-limit 80000000)
+#+end_src
 ** Fonts
 Doom exposes five variables for controlling fonts.
 *** Doom Primary Font
