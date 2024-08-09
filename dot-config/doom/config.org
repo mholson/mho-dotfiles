@@ -86,6 +86,7 @@ I really like working in dark-mode using the doom-nord-aurora theme.
 ** Convenience
 *** Global Keybindings
 ** Tools
+*** Org-Roam
 * Languages
 ** LaTeX
 ** Markdown
