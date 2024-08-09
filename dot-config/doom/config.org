@@ -22,6 +22,12 @@ numbers appear. However, I prefer relative line numbers.
 #+begin_src emacs-lisp
 (setq display-line-numbers-type 'relative)
 #+end_src
+*** Scrolling
+A little margin looks good.
+#+begin_src emacs-lisp
+(setq scroll-preserve-screen position 'always
+      scroll-margin 4)
+#+end_src
 ** Cursor
 Stretch the width of the block cursor to match the width of the glyph.
 #+begin_src emacs-lisp
