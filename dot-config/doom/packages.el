@@ -48,3 +48,24 @@
 ;; (unpin! pinned-package another-pinned-package)
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
+(unpin! org-roam)
+(package! org-roam-ui)
+(package! org-transclusion)
+(package! aas)
+(package! laas)
+(package! denote)
+(package! ob-mermaid)
+(package! ob-swift)
+(package! denote-explore)
+(package! keycast :recipe (:host github
+                           :repo "tarsius/keycast"
+                           :files ("*.el" "Makefile")))
+(package! anki-editor :recipe (:host github
+                             :repo "anki-editor/anki-editor"))
+;;(package! catppuccin-theme)
+;; (package! copilot
+;;   :recipe (:host github :repo "copilot-emacs/copilot.el" :files ("*.el")))
+(package! typst-ts-mode :recipe (:host sourcehut
+                                 :repo "meow_king/typst-ts-mode"))
+(package! ox-typst :recipe (:host github
+                                 :repo "jmpunkt/ox-typst"))
