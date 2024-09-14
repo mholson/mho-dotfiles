@@ -404,6 +404,33 @@ https://github.com/nobiot/org-transclusion
    :prefix "n"
    :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
 #+end_src
+*** Yasnippets
+**** Yasnippet
+Locating where snippets are located and enabling nested snippets
+#+begin_src emacs-lisp
+(after! yasnippet
+  (setq yas-snippet-dirs '("~/.config/doom/snippets")
+(setq yas-triggers-in-field t))
+#+end_src
+Removing Tab functionality in nxml-mode
+#+begin_src emacs-lisp
+(after! nxml-mode
+  (map! :map nxml-mode-map
+        :i "TAB" #'yas-next-field
+        :i "<tab>" #'yas-next-field))
+#+end_src
+Getting snippets to work with org https://github.com/doomemacs/doomemacs/issues/7733
+#+begin_src emacs-lisp
+(defun mho/org-tab-conditional ()
+  (interactive)
+  (if (yas-active-snippets)
+      (yas-next-field-or-maybe-expand)
+    (org-cycle)))
+
+(map! :after evil-org
+      :map evil-org-mode-map
+      :i "<tab>" #'mho/org-tab-conditional)
+#+end_src
 * Languages
 ** LaTeX
 ** Markdown
