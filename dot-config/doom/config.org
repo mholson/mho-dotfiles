@@ -39,7 +39,7 @@ Sending deleted files to the trash and use auto-save ... just in case.
 (setq-default delete-by-moving-to-trash t)
 (setq auto-save-default t)
 #+end_src
-Raising the undo limit to 80Mb
+Raising the undo limit to 80Mb.
 #+begin_src emacs-lisp
 (setq undo-limit 80000000)
 #+end_src
@@ -49,6 +49,7 @@ Let's also enable granular undo
 #+end_src
 ** Fonts
 If you or Emacs can't find your font, use ~M-x describe-font~ to look them up, ~M-x eval-region~ to execute elisp code, and ~M-x doom/reload-font~ to refresh your font settings. If Emacs still can't find your font, it likely wasn't installed correctly. Font issues are rarely Doom issues!
+
 Doom exposes five variables for controlling fonts.
 *** Doom Primary Font
 I rather like the SF Mono font.
