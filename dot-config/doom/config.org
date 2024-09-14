@@ -92,6 +92,12 @@ the modifier keys such that:
       mac-control-modifier 'super
       mac-function-modifier 'hyper)
 #+end_src
+** Security
+*** Passwords
+After how many seconds should emacs forget my passwords?  Well, I trust this machine so I will set it to nil.
+#+begin_src emacs-lisp
+(setq password-cache-expiry nil)
+#+end_src
 ** Themes
 I really like working in dark-mode using the doom-nord-aurora theme.
 #+begin_src emacs-lisp
