@@ -53,6 +53,7 @@
 (package! org-transclusion)
 (package! aas)
 (package! laas)
+(package! lorem-ipsum)
 (package! denote)
 (package! ob-mermaid)
 (package! ob-swift)
@@ -60,6 +61,10 @@
 (package! keycast :recipe (:host github
                            :repo "tarsius/keycast"
                            :files ("*.el" "Makefile")))
+(package! calctex :recipe (:host github
+                           :repo "johnbcoughlin/calctex"
+                           :files ("*.el" "calctex/*.el" "calctex-contrib/*.el" "org-calctex/*.el" "vendor")))
+
 (package! anki-editor :recipe (:host github
                              :repo "anki-editor/anki-editor"))
 ;;(package! catppuccin-theme)
