@@ -1,0 +1,11 @@
+# key: anki
+# name: anki-temp
+# --
+** Item
+:PROPERTIES:
+:ANKI_DECK: AACY-apple-certified-it-professional-2024
+:ANKI_NOTE_TYPE: Basic
+:END:
+*** Front
+${1:`(current-kill 0)`}
+*** Back

@@ -1,0 +1,25 @@
+# -*- mode: snippet -*-
+# name: StartCalendarInverval
+# uuid:
+# key: plist.startcalendarinterval
+# condition: t
+# --
+    <key>StartCalendarInterval</key>
+    <array>
+      <dict>
+        <key>Hour</key>
+        <integer></integer>
+        <key>Minute</key>
+        <integer></integer>
+        <key>Weekday</key>
+        <integer></integer>
+      </dict>
+      <dict>
+        <key>Hour</key>
+        <integer></integer>
+        <key>Minute</key>
+        <integer></integer>
+        <key>Weekday</key>
+        <integer></integer>
+      </dict>
+    </array>

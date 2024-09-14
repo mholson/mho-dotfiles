@@ -1,0 +1,4 @@
+# name: exam insert question
+# key: leiq
+# --
+\input{0-tex/tex_exam-${1:ID}}$0

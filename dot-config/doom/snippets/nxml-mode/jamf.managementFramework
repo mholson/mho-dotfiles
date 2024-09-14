@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: Jamf Management Framework
+# key: jamf.managementFramework
+# --
+${1:enter}
+<string>/usr/local/jamf/bin/jamf</string>
+<string>manage</string>${2:here}

@@ -1,0 +1,4 @@
+# key: lcmi
+# name: inline minted
+# --
+\mintinline{${1:$$(yas-choose-value '("python" "html" "js" "swift" "css" "elisp"))}}{${2:code}} $0
