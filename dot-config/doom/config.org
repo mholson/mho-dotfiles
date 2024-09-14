@@ -25,8 +25,8 @@ numbers appear. However, I prefer relative line numbers.
 *** Scrolling
 A little margin looks good.
 #+begin_src emacs-lisp
-(setq scroll-preserve-screen position 'always
-      scroll-margin 4)
+(setq scroll-preserve-screen-position 'always)
+(setq scroll-margin 4)
 #+end_src
 ** Cursor
 Stretch the width of the block cursor to match the width of the glyph.
@@ -376,7 +376,6 @@ If in dired mode, rename the selected file instead."
            ;;(file+head "%<%y%m%d_%H%M%S>-${slug}.org" ":PROPERTIES:\n:ID: %<%y%m%d_%H%M%S>\n:END:\n#+title: ${title}\n#+date: [%<%Y-%m-%d %a %H:%S>]\n#+filetags: \n#+identifier: %<%Y%m%d_%H%M%S>\n\n")
            :immediate-finish t
            :unnarrowed t))))
-
 (setq org-roam-file-ignore-regexp (rx (or "resources" "typst" "daily" "anki" ".pdf" ".typ")))
 (use-package! websocket
   :after org-roam)
@@ -410,7 +409,7 @@ https://github.com/nobiot/org-transclusion
 Locating where snippets are located and enabling nested snippets
 #+begin_src emacs-lisp
 (after! yasnippet
-  (setq yas-snippet-dirs '("~/.config/doom/snippets")
+  (setq yas-snippet-dirs '("~/.config/doom/snippets"))
 (setq yas-triggers-in-field t))
 #+end_src
 Removing Tab functionality in nxml-mode
@@ -603,7 +602,7 @@ Easier linking of files.  From tecosaur.
   (map! :after org
         :map org-mode-map
         :localleader
-        "l f" #'mho/org-insert-file-link)
+        "l f" #'mho/org-insert-file-link
   )
 #+end_src
 *** Babel
