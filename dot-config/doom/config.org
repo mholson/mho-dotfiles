@@ -117,6 +117,14 @@ Showing time on the modline
 (global-set-key (kbd "M-w") 'save-buffer)
 #+end_src
 * Packages
+*** Org-Anki
+https://github.com/eyeinsky/org-anki
+#+begin_src emacs-lisp
+(use-package! anki-editor
+  :after org
+  ;;:config
+  )
+#+end_src
 *** Org-Roam
 * Languages
 ** LaTeX
