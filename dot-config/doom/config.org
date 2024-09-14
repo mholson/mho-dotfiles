@@ -605,4 +605,67 @@ Easier linking of files.  From tecosaur.
         "l f" #'mho/org-insert-file-link)
   )
 #+end_src
+*** Babel
+**** Latex
+**** Mermaid
+#+begin_src emacs-lisp
+(use-package! ob-mermaid
+  :after org)
+(setq ob-mermaid-cli-path "/opt/homebrew/bin/mmdc")
+(org-babel-do-load-languages
+    'org-babel-load-languages
+    '((mermaid . t)
+      (scheme . t)
+      (swift . t)
+      (your-other-langs . t)))
+#+end_src
+**** Swift
+#+begin_src emacs-lisp
+(use-package! ob-swift
+  :after org)
+#+end_src
+**** Typst
+#+begin_src emacs-lisp
+(use-package! ox-typst
+  :after org)
+#+end_src
 ** Python
+** Typst
+Thanks to https://github.com/braun-steven/dotfiles/tree/master/configs/emacs/.doom.d
+#+begin_src emacs-lisp
+;; (use-package! typst-ts-mode
+;;   :defer t
+;;   :custom (progn
+;;   (typst-ts-mode-watch-options "--open")
+;;   ;; experimental settings (from the main dev)
+;;   (typst-ts-mode-enable-raw-blocks-highlight t)
+;;   (typst-ts-mode-highlight-raw-blocks-at-startup t))
+
+;; :config
+
+;; Functions
+;; (defun mho/typstfmt-current-buffer ()
+;;   "Formats the current typst document using the typstfmt binary."
+;;   (interactive)
+;;   (if (buffer-file-name)
+;;       (shell-command (concat "typstfmt " (shell-quote-argument (buffer-file-name))))
+;;     (message "Buffer is not associated with a file.")))
+
+;; ;; Keybindings
+;; (map! :map typst-ts-mode-map
+
+;;       :localleader
+
+;;       :desc "View" "v"     #'typst-ts-mode-preview
+;;       :desc "Watch" "w"     #'typst-ts-mode-watch-toggle
+;;       :desc "Compile" "c"     #'typst-ts-mode-compile-and-preview
+;;       :desc "Format" ","    #'mho/typstfmt-current-buffer
+;;       )
+;; Add typst to list
+;; (add-to-list 'treesit-language-source-alist
+;;              '(typst "https://github.com/uben0/tree-sitter-typst"))
+
+
+  ;; Necessary or else localleader is not detected
+  ;; (add-hook 'typst-ts-mode-hook #'evil-normalize-keymaps))
+#+end_src
