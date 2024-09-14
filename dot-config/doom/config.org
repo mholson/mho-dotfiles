@@ -103,6 +103,11 @@ I really like working in dark-mode using the doom-nord-aurora theme.
 #+begin_src emacs-lisp
 (setq doom-theme 'doom-nord-aurora)
 #+end_src
+** Modline
+Showing time on the modline
+#+begin_src emacs-lisp
+(display-time-mode 1)
+#+end_src
 * Packages
 ** Convenience
 *** Global Keybindings
