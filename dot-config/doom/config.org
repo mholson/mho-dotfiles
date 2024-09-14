@@ -516,6 +516,47 @@ Getting snippets to work with org https://github.com/doomemacs/doomemacs/issues/
 #+end_src
 * Languages
 ** LaTeX
+*** Path
+#+begin_src emacs-lisp
+(setenv "PATH" "/usr/local/bin:/Library/TeX/texbin/:$PATH" t)
+#+end_src
+*** Compiling
+I do not want to be prompted to save before I compile.
+#+begin_src emacs-lisp
+(setq TeX-save-query nil)
+#+end_src
+I want to observe the compilation process
+#+begin_src emacs-lisp
+(setq TeX-show-compilation t)
+#+end_src
+Adding ~shell-escape~ option.
+#+begin_src emacs-lisp
+(setq TeX-command-extra-options "-shell-escape")
+#+end_src
+Adding the XeLaTeX command
+#+begin_src emacs-lisp
+(after! latex
+  (add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex%(mode)%' %t" TeX-run-TeX nil t)))
+#+end_src
+*** Preview
+#+begin_src emacs-lisp
+(setq +latex-viewers '(skim preview))
+(setq TeX-view-program-list
+      '(("Preview" "/usr/bin/open -a Preview.app %o")
+        ("Skim" "/Applications/Skim.app/Contents/SharedSupport/displayline -r -b %n %o %b")))
+(setq TeX-view-program-selection
+      '((output-dvi "Skim") (output-pdf "Skim") (output-html "open")));;
+#+end_src
+Syncing the output 
+#+begin_src emacs-lisp
+(setq TeX-source-correlate-mode t)
+(setq TeX-source-correlate-start-server t)
+(setq TeX-source-correlate-method 'synctex)
+#+end_src
+*** OX-LaTeX Export
+#+begin_src emacs-lisp
+ (setq org-latex-pdf-process '("LC_ALL=en_US.UTF-8 latexmk -f -pdf -%latex -shell-escape -interaction=nonstopmode -output-directory=%o %f"))
+#+end_src
 ** Markdown
 ** Org
 ** Python
