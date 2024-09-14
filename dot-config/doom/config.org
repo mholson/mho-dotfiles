@@ -108,10 +108,15 @@ Showing time on the modline
 #+begin_src emacs-lisp
 (display-time-mode 1)
 #+end_src
+* Convenience
+** Global Keybindings
+#+begin_src emacs-lisp
+(global-set-key (kbd "C-å") 'sp-wrap-curly)
+;;(global-set-key (kbd "C-ä") 'sp-up-sexp)
+(global-set-key (kbd "M-o") 'sp-up-sexp)
+(global-set-key (kbd "M-w") 'save-buffer)
+#+end_src
 * Packages
-** Convenience
-*** Global Keybindings
-** Tools
 *** Org-Roam
 * Languages
 ** LaTeX
