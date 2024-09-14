@@ -559,4 +559,50 @@ Syncing the output
 #+end_src
 ** Markdown
 ** Org
+*** Directories
+#+begin_src emacs-lisp
+(setq org-directory "~/Documents/mho-roam/")
+#+end_src
+*** TagIDs
+#+begin_src emacs-lisp
+(use-package! org
+  :config
+  (setq org-image-actual-width 400)
+  ;; Set Org-ID method to use the custom function
+  (defun mho/org-id-new ()
+    "Generate a new custom ID for Org mode using the custom full ID generator."
+    (let ((new-id (get-and-update-full-id)))
+      (setq mho/org-roam-last-id new-id)
+      new-id))
+
+  ;; Ensure org-id-get-create uses the custom ID generation method
+  (defun org-id-get-create (&optional where force)
+    "Create an ID for the entry at WHERE and return it. If FORCE is non-nil,
+    recreate the ID if one already exists."
+    (interactive)
+    (let ((id (org-id-get where force)))
+      (unless id
+        (setq id (mho/org-id-new))
+        (org-entry-put where "ID" id))
+      id)
+    (setq mho/org-roam-last-id nil))
+
+  (setq org-id-method 'org)
+  (setq org-id-new 'mho/org-id-new)
+  )
+#+end_src
+*** Links
+Easier linking of files.  From tecosaur.
+#+begin_src emacs-lisp
+  (defun mho/org-insert-file-link ()
+    "Insert a file link.  At the prompt, enter the filename."
+    (interactive)
+    (org-insert-link nil (org-link-complete-file)))
+
+  (map! :after org
+        :map org-mode-map
+        :localleader
+        "l f" #'mho/org-insert-file-link)
+  )
+#+end_src
 ** Python
