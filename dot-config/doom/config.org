@@ -43,6 +43,10 @@ Raising the undo limit to 80Mb
 #+begin_src emacs-lisp
 (setq undo-limit 80000000)
 #+end_src
+Let's also enable granular undo
+#+begin_src emacs-lisp
+(setq evil-want-fine-undo t)
+#+end_src
 ** Fonts
 Doom exposes five variables for controlling fonts.
 *** Doom Primary Font
