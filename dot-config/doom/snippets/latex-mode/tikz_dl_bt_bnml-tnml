@@ -1,4 +1,5 @@
-# name: Distributive Law mnml-bnml Product
+# -*- mode: snippet -*-
+# name: Distributive Law bnml-tnml Product
 # key: tikzdlbt
 # --
 \\begin{tikzpicture}
