@@ -391,6 +391,19 @@ If in dired mode, rename the selected file instead."
         org-roam-ui-update-on-save t
         org-roam-ui-open-on-start t))
 #+end_src
+*** Org-Transclusion
+https://github.com/nobiot/org-transclusion
+#+begin_src emacs-lisp
+(use-package! org-transclusion
+  :after org
+  :init
+  (map!
+   :map global-map "C-ö C-h" #'org-transclusion-remove-all
+   :map global-map "C-ö C-v" #'org-transclusion-add
+   :leader
+   :prefix "n"
+   :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
+#+end_src
 * Languages
 ** LaTeX
 ** Markdown
