@@ -337,6 +337,29 @@ If in dired mode, rename the selected file instead."
       :map evil-org-mode-map
       :i "<tab>" #'mho/org-tab-conditional)
 
+(defun mho/gen-id-snippet ()
+  "Generate a full_id composed of a date stamp and the first available ID from a
+   file, prompt the user before deleting the line, and save the ID to the kill
+   ring."
+  (interactive)
+  (let* ((id-file "~/Documents/mho-roam/resources/code/shell/TAGS-tagids.txt")  ; Adjust the path as needed
+         ;;(date-str (format-time-string "%y%m%d"))
+         (buffer (find-file-noselect id-file))
+         full_id)
+    (with-current-buffer buffer
+      (goto-char (point-min))
+      (let ((first-id (buffer-substring-no-properties (point) (line-end-position))))
+        ;;(setq full_id (concat date-str "--" first-id))  ; Changed format for clarity
+        (setq full_id first-id)  ; Changed format for clarity
+        (if (yes-or-no-p (format "Delete the first line containing ID: %s?" first-id))
+            (progn
+              (delete-region (point) (1+ (line-end-position)))
+              (save-buffer)
+              (kill-buffer)
+              (kill-new full_id)
+              (message full_id))
+          (message "ID generation aborted"))))))
+
 (use-package laas
   :hook (LaTeX-mode . laas-mode)
   :config ; do whatever here
@@ -497,7 +520,12 @@ If in dired mode, rename the selected file instead."
   :after org)
 
 (use-package! ox-typst
-  :after org)
+  :after org
+  :config
+  (defun org-typst-template (contents info)
+  ;; Always return an empty string
+  contents)
+  )
 
 ;;(after! org
   ;; C-c c is for capture, it’s good enough for me
@@ -670,6 +698,14 @@ If in dired mode, rename the selected file instead."
 ;;(after! python
 ;;  (setq python-shell-interpreter "~/anaconda3/bin/python"))
 
+(with-eval-after-load 'eglot
+  (with-eval-after-load 'typst-ts-mode
+    (add-to-list 'eglot-server-programs
+                 `((typst-ts-mode) .
+                   ,(eglot-alternatives `(,typst-ts-lsp-download-path
+                                          "tinymist"
+                                          "typst-lsp"))))))
+
 ;; (use-package! typst-ts-mode
 ;;   :defer t
 ;;   :custom (progn
@@ -702,6 +738,5 @@ If in dired mode, rename the selected file instead."
 ;; (add-to-list 'treesit-language-source-alist
 ;;              '(typst "https://github.com/uben0/tree-sitter-typst"))
 
-
-  ;; Necessary or else localleader is not detected
-  ;; (add-hook 'typst-ts-mode-hook #'evil-normalize-keymaps))
+;; Necessary or else localleader is not detected
+;; (add-hook 'typst-ts-mode-hook #'evil-normalize-keymaps))

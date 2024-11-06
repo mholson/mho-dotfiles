@@ -445,6 +445,32 @@ Getting snippets to work with org https://github.com/doomemacs/doomemacs/issues/
       :map evil-org-mode-map
       :i "<tab>" #'mho/org-tab-conditional)
 #+end_src
+**** Custom Code
+***** Generate TagID
+#+begin_src emacs-lisp
+(defun mho/gen-id-snippet ()
+  "Generate a full_id composed of a date stamp and the first available ID from a
+   file, prompt the user before deleting the line, and save the ID to the kill
+   ring."
+  (interactive)
+  (let* ((id-file "~/Documents/mho-roam/resources/code/shell/TAGS-tagids.txt")  ; Adjust the path as needed
+         ;;(date-str (format-time-string "%y%m%d"))
+         (buffer (find-file-noselect id-file))
+         full_id)
+    (with-current-buffer buffer
+      (goto-char (point-min))
+      (let ((first-id (buffer-substring-no-properties (point) (line-end-position))))
+        ;;(setq full_id (concat date-str "--" first-id))  ; Changed format for clarity
+        (setq full_id first-id)  ; Changed format for clarity
+        (if (yes-or-no-p (format "Delete the first line containing ID: %s?" first-id))
+            (progn
+              (delete-region (point) (1+ (line-end-position)))
+              (save-buffer)
+              (kill-buffer)
+              (kill-new full_id)
+              (message full_id))
+          (message "ID generation aborted"))))))
+#+end_src
 **** LaTeX Auto-Activating Snippets
 #+begin_src emacs-lisp
 (use-package laas
@@ -645,8 +671,15 @@ Easier linking of files.  From tecosaur.
 **** Typst
 #+begin_src emacs-lisp
 (use-package! ox-typst
-  :after org)
+  :after org
+  :config
+  (defun org-typst-template (contents info)
+  ;; Always return an empty string
+  contents)
+  )
 #+end_src
+
+
 *** TODO AGENDA
 #+begin_src emacs-lisp
 ;;(after! org
@@ -824,6 +857,17 @@ Easier linking of files.  From tecosaur.
 ;;  (setq python-shell-interpreter "~/anaconda3/bin/python"))
 #+end_src
 ** Typst
+#+begin_src emacs-lisp
+(with-eval-after-load 'eglot
+  (with-eval-after-load 'typst-ts-mode
+    (add-to-list 'eglot-server-programs
+                 `((typst-ts-mode) .
+                   ,(eglot-alternatives `(,typst-ts-lsp-download-path
+                                          "tinymist"
+                                          "typst-lsp"))))))
+#+end_src
+
+
 Thanks to https://github.com/braun-steven/dotfiles/tree/master/configs/emacs/.doom.d
 #+begin_src emacs-lisp
 ;; (use-package! typst-ts-mode
@@ -858,7 +902,6 @@ Thanks to https://github.com/braun-steven/dotfiles/tree/master/configs/emacs/.do
 ;; (add-to-list 'treesit-language-source-alist
 ;;              '(typst "https://github.com/uben0/tree-sitter-typst"))
 
-
-  ;; Necessary or else localleader is not detected
-  ;; (add-hook 'typst-ts-mode-hook #'evil-normalize-keymaps))
+;; Necessary or else localleader is not detected
+;; (add-hook 'typst-ts-mode-hook #'evil-normalize-keymaps))
 #+end_src
