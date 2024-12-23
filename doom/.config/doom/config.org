@@ -11,6 +11,11 @@ Taken from ([[https://github.com/tecosaur/emacs-config/blob/master/config.org#pe
 (setq user-full-name "Mark Olson"
       user-mail-address "41911657+mholson@users.noreply.github.com")
 #+end_emacs-lisp
+** GPG
+#+begin_emacs-lisp
+(setq auth-sources '("~/.authinfo.gpg")
+      auth-source-cache-expiry nil) ; default is 7200 (2h)
+#+end_emacs-lisp
 * Issues
 * Environment Setup
 ** Windows
