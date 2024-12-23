@@ -53,6 +53,23 @@
 (global-set-key (kbd "M-o") 'sp-up-sexp)
 (global-set-key (kbd "M-w") 'save-buffer)
 
+(map! :leader
+      :desc "Run mho/gen-id"
+      "j" #'mho/gen-id
+      )
+
+(map! :leader
+      (:prefix ("l" . "link")
+      :desc "File"
+      "f" #'mho/org-insert-file-link
+      ))
+
+(map! :leader
+      (:prefix ("l" . "link")
+      :desc "Clipboard"
+      "c" #'org-cliplink
+      ))
+
 (use-package! anki-editor
   :after org
   ;;:config
