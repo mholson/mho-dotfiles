@@ -144,6 +144,30 @@ Loading whichkey a little faster
 (global-set-key (kbd "M-o") 'sp-up-sexp)
 (global-set-key (kbd "M-w") 'save-buffer)
 #+end_src
+The command I use most often is to generate file ID numbers.  Let's give that a simple keybinding.  Since ~SPC i~ was already taken, I am going to use ~SPC j~.
+#+begin_src emacs-lisp
+(map! :leader
+      :desc "Run mho/gen-id"
+      "j" #'mho/gen-id
+      )
+#+end_src
+Let's also create some keybindings for creating org links.
+Using a custom file link to access a custom directory:
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("l" . "link")
+      :desc "File"
+      "f" #'mho/org-insert-file-link
+      ))
+#+end_src
+Creating a link from the contents of the clipboard.
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("l" . "link")
+      :desc "Clipboard"
+      "c" #'org-cliplink
+      ))
+#+end_src
 * Packages
 *** Org-Anki
 https://github.com/eyeinsky/org-anki
