@@ -3,6 +3,14 @@
 #+startup: fold
 
 * Introduction
+* Personal
+** Contact Information
+Apprently, this is necessary for GPG to work
+Taken from ([[https://github.com/tecosaur/emacs-config/blob/master/config.org#personal-information][emacs-config/config.org at master · tecosaur/emacs-config · GitHub]])
+#+begin_emacs-lisp
+(setq user-full-name "Mark Olson"
+      user-mail-address "41911657+mholson@users.noreply.github.com")
+#+end_emacs-lisp
 * Issues
 * Environment Setup
 ** Windows
