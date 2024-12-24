@@ -15,8 +15,6 @@ Taken from ([[https://github.com/tecosaur/emacs-config/blob/master/config.org#pe
 #+begin_emacs-lisp
 (setq epa-file-select-keys nil) ;; Disable key selection prompt
 (setq epa-file-encrypt-to '("AA439838FBBF10FC"))
-(setq auth-sources '("~/.authinfo.gpg")
-      auth-source-cache-expiry nil) ; default is 7200 (2h)
 #+end_emacs-lisp
 * Issues
 * Environment Setup
