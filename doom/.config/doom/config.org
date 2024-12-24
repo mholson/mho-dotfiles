@@ -62,6 +62,10 @@ Let's also enable granular undo
 #+begin_src emacs-lisp
 (setq evil-want-fine-undo t)
 #+end_src
+Let's make sure Apple Keynote files are not treated as directories.
+#+begin_src emacs-lisp
+#+end_src
+
 ** Fonts
 If you or Emacs can't find your font, use ~M-x describe-font~ to look them up, ~M-x eval-region~ to execute elisp code, and ~M-x doom/reload-font~ to refresh your font settings. If Emacs still can't find your font, it likely wasn't installed correctly. Font issues are rarely Doom issues!
 
