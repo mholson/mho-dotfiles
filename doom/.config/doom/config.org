@@ -728,13 +728,12 @@ Easier linking of files.  From tecosaur.
   )
 #+end_src
 
-
 *** TODO AGENDA
 #+begin_src emacs-lisp
-;;(after! org
+(after! org
   ;; C-c c is for capture, it’s good enough for me
-  ;; (global-set-key (kbd "C-c a") #'org-agenda)
-  ;; (global-set-key (kbd "C-c c") #'org-capture)
+  (global-set-key (kbd "C-c a") #'org-agenda)
+  (global-set-key (kbd "C-c c") #'org-capture)
 
   ;; Org Capture Templates
   ;; (setq org-capture-templates
@@ -755,15 +754,16 @@ Easier linking of files.  From tecosaur.
   ;;               )))
 
   ;; Skip finished items
-  ;; (setq org-agenda-todo-ignore-scheduled t)
-  ;; (setq org-agenda-todo-ignore-deadline t)
-  ;; (setq org-agenda-skip-deadline-if-done t)
-  ;; (setq org-agenda-skip-scheduled-if-done t)
+  (setq org-agenda-todo-ignore-scheduled t)
+  (setq org-agenda-todo-ignore-deadlines t)
+  (setq org-agenda-skip-deadline-if-done t)
+  (setq org-agenda-skip-scheduled-if-done t)
 
   ;; TODOs Keywords
-  ;; (setq org-todo-keywords
-  ;;       '((sequence "TODO(t)" "NEXT(n)" "ONGOING(o)" "MEET(m)" "PROJ(p)" "|" "DONE(d)")
-  ;;         (sequence "WAIT(w)"  "|" "CANCEL(c)")))
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "ONGOING(o)" "MEET(m)" "PROJ(p)" "|" "DONE(d)")
+          (sequence "WAIT(w)"  "|" "CANCEL(c)"))
+        )
 
   ;; Add Week numbers to Agenda Calendar
   ;; (setq calendar-week-start-day 1)
@@ -780,17 +780,18 @@ Easier linking of files.  From tecosaur.
   ;;         'font-lock-face 'calendar-iso-week-face))
   ;; (setq calendar-intermonth-header
   ;;       (propertize "Wk"                  ; or e.g. "KW" in Germany
-  ;;                   'font-lock-face 'calendar-iso-week-header-face))
+  ;;                   'font-lock-face 'calendar-iso-week-header-face)
+  ;;       )
   ;; Set default org image to 550
   ;;(setq org-image-actual-width (list 550))
 
   ;; Add timestamp to completed tasks
-  ;; (setq org-log-done 'time
-  ;;       org-log-into-drawer t
-  ;;       org-log-state-notes-insert-after-drawers nil)
+  (setq org-log-done 'time
+        org-log-into-drawer t
+        org-log-state-notes-insert-after-drawers nil)
   ;; Hide emphasis markers on formatted text
-  ;; (setq org-hide-emphasis-markers t)
-  ;;)
+  (setq org-hide-emphasis-markers t)
+  )
 ;; Load org-faces to make sure we can set appropriate faces
 ;;(require 'org-faces)
 
@@ -804,16 +805,17 @@ Easier linking of files.  From tecosaur.
 ;; (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
 ;; (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
 
-;; (after! hl-todo
-;;   (setq hl-todo-keyword-faces
-;;         `(("MEET" . "#81A1C1")
-;;           ("NEXT" . "#D08770")
-;;           ("ONGOING" . "#A3BE8C")
-;;           ("TODO" . "#88C0D0")
-;;           ("PROJ" . "#EBCB8B")
-;;           ("WAIT" . "#8FBCBB")
-;;           ("CANCEL" . "#BF616A")
-;;           )))
+(after! hl-todo
+  (setq hl-todo-keyword-faces
+        `(("MEET" . "#81A1C1")
+          ("NEXT" . "#D08770")
+          ("ONGOING" . "#A3BE8C")
+          ("TODO" . "#88C0D0")
+          ("PROJ" . "#EBCB8B")
+          ("WAIT" . "#8FBCBB")
+          ("CANCEL" . "#BF616A")
+          ))
+  )
 
 ;; ORG-SUPER AGENDA
 ;; (after! org-agenda
@@ -897,8 +899,28 @@ Easier linking of files.  From tecosaur.
 ;; (add-hook 'org-pomodoro-started-hook 'my/org-pomodoro-start-sound)
 ;; (add-hook 'org-pomodoro-finished-hook 'my/org-pomodoro-finished-sound)
 ;; (add-hook 'org-pomodoro-break-finished-hook 'my/org-pomodoro-break-sound))
+
 #+end_src
 
+#+RESULTS:
+: ((MEET . #81A1C1) (NEXT . #D08770) (ONGOING . #A3BE8C) (TODO . #88C0D0) (PROJ . #EBCB8B) (WAIT . #8FBCBB) (CANCEL . #BF616A))
+*** Todo list
+**** Set Archive Location
+Setting the value of the ~org-archive-location~, where
+- ~%s~ :: is the name of the file name
+- ~_archive~ :: is appended to the filename
+- ~::~ :: separates the filename from the location within the file
+- ~datetree/~ :: specifies that archived tasks should be stored in a date tree
+#+begin_src emacs-lisp
+(setq org-archive-location "%s_archive::datetree/")
+#+end_src
+**** Custom Archive all Function
+#+begin_emacs-lisp
+(defun mho/task-archives-to-datetree ()
+  "Archive all completed tasks in the current Org file into a date tree."
+  (interactive)
+  (org-map-entries 'org-archive-subtree "/DONE|CANCELLED" 'file))
+#+end_emacs-lisp
 ** Python
 #+begin_src emacs-lisp
 ;;(setq org-babel-python-command "~/anaconda3/bin/python")

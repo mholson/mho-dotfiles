@@ -17,6 +17,8 @@
 
 (setq evil-want-fine-undo t)
 
+
+
 (setq doom-font (font-spec :family "SF Mono" :size 21 ))
 
 (setq truncate-string-ellipsis "…")
@@ -309,6 +311,12 @@ If in dired mode, rename the selected file instead."
            ;; The below was used to generate unique IDs based on a unique YYYYMMDDTHHMMSS ID
            ;;(file+head "%<%y%m%d_%H%M%S>-${slug}.org" ":PROPERTIES:\n:ID: %<%y%m%d_%H%M%S>\n:END:\n#+title: ${title}\n#+date: [%<%Y-%m-%d %a %H:%S>]\n#+filetags: \n#+identifier: %<%Y%m%d_%H%M%S>\n\n")
            :immediate-finish t
+           :unnarrowed t)))
+  (setq org-roam-dailies-capture-templates
+        '(("d" "default" plain "%?"
+           :target (file+head "%<%Y-%m-%d>.org"
+                              ":PROPERTIES:\n:ID: %<%Y-%m-%d>\n:END:\n#+title: Daily for %<%Y-%m-%d>\n\n")
+           :immediate-finish t
            :unnarrowed t))))
 (setq org-roam-file-ignore-regexp (rx (or "resources" "typst" "daily" "anki" ".pdf" ".typ")))
 (use-package! websocket
@@ -544,10 +552,10 @@ If in dired mode, rename the selected file instead."
   contents)
   )
 
-;;(after! org
+(after! org
   ;; C-c c is for capture, it’s good enough for me
-  ;; (global-set-key (kbd "C-c a") #'org-agenda)
-  ;; (global-set-key (kbd "C-c c") #'org-capture)
+  (global-set-key (kbd "C-c a") #'org-agenda)
+  (global-set-key (kbd "C-c c") #'org-capture)
 
   ;; Org Capture Templates
   ;; (setq org-capture-templates
@@ -568,15 +576,16 @@ If in dired mode, rename the selected file instead."
   ;;               )))
 
   ;; Skip finished items
-  ;; (setq org-agenda-todo-ignore-scheduled t)
-  ;; (setq org-agenda-todo-ignore-deadline t)
-  ;; (setq org-agenda-skip-deadline-if-done t)
-  ;; (setq org-agenda-skip-scheduled-if-done t)
+  (setq org-agenda-todo-ignore-scheduled t)
+  (setq org-agenda-todo-ignore-deadlines t)
+  (setq org-agenda-skip-deadline-if-done t)
+  (setq org-agenda-skip-scheduled-if-done t)
 
   ;; TODOs Keywords
-  ;; (setq org-todo-keywords
-  ;;       '((sequence "TODO(t)" "NEXT(n)" "ONGOING(o)" "MEET(m)" "PROJ(p)" "|" "DONE(d)")
-  ;;         (sequence "WAIT(w)"  "|" "CANCEL(c)")))
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "ONGOING(o)" "MEET(m)" "PROJ(p)" "|" "DONE(d)")
+          (sequence "WAIT(w)"  "|" "CANCEL(c)"))
+        )
 
   ;; Add Week numbers to Agenda Calendar
   ;; (setq calendar-week-start-day 1)
@@ -593,17 +602,18 @@ If in dired mode, rename the selected file instead."
   ;;         'font-lock-face 'calendar-iso-week-face))
   ;; (setq calendar-intermonth-header
   ;;       (propertize "Wk"                  ; or e.g. "KW" in Germany
-  ;;                   'font-lock-face 'calendar-iso-week-header-face))
+  ;;                   'font-lock-face 'calendar-iso-week-header-face)
+  ;;       )
   ;; Set default org image to 550
   ;;(setq org-image-actual-width (list 550))
 
   ;; Add timestamp to completed tasks
-  ;; (setq org-log-done 'time
-  ;;       org-log-into-drawer t
-  ;;       org-log-state-notes-insert-after-drawers nil)
+  (setq org-log-done 'time
+        org-log-into-drawer t
+        org-log-state-notes-insert-after-drawers nil)
   ;; Hide emphasis markers on formatted text
-  ;; (setq org-hide-emphasis-markers t)
-  ;;)
+  (setq org-hide-emphasis-markers t)
+  )
 ;; Load org-faces to make sure we can set appropriate faces
 ;;(require 'org-faces)
 
@@ -617,16 +627,17 @@ If in dired mode, rename the selected file instead."
 ;; (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
 ;; (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
 
-;; (after! hl-todo
-;;   (setq hl-todo-keyword-faces
-;;         `(("MEET" . "#81A1C1")
-;;           ("NEXT" . "#D08770")
-;;           ("ONGOING" . "#A3BE8C")
-;;           ("TODO" . "#88C0D0")
-;;           ("PROJ" . "#EBCB8B")
-;;           ("WAIT" . "#8FBCBB")
-;;           ("CANCEL" . "#BF616A")
-;;           )))
+(after! hl-todo
+  (setq hl-todo-keyword-faces
+        `(("MEET" . "#81A1C1")
+          ("NEXT" . "#D08770")
+          ("ONGOING" . "#A3BE8C")
+          ("TODO" . "#88C0D0")
+          ("PROJ" . "#EBCB8B")
+          ("WAIT" . "#8FBCBB")
+          ("CANCEL" . "#BF616A")
+          ))
+  )
 
 ;; ORG-SUPER AGENDA
 ;; (after! org-agenda
@@ -710,6 +721,8 @@ If in dired mode, rename the selected file instead."
 ;; (add-hook 'org-pomodoro-started-hook 'my/org-pomodoro-start-sound)
 ;; (add-hook 'org-pomodoro-finished-hook 'my/org-pomodoro-finished-sound)
 ;; (add-hook 'org-pomodoro-break-finished-hook 'my/org-pomodoro-break-sound))
+
+(setq org-archive-location "%s_archive::datetree/")
 
 ;;(setq org-babel-python-command "~/anaconda3/bin/python")
 ;;(after! python
