@@ -1,6 +1,7 @@
 # -*- mode: snippet -*-
 # name: Typst Definition Environment
-# key: t.d
+# key: ct.d
+# group: cTheorems
 # --
 
 #let ${1:`(mho/gen-id-snippet)`} = definition("${2:term}", number: "$1")[
