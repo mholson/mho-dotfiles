@@ -1,0 +1,13 @@
+# -*- mode: snippet -*-
+# name: typst preamble
+# key: t.p
+# --
+#import "/resources/code/typst/0-mho-lib.typ": *
+
+#show: thmrules.with(qed-symbol: \$square\$)
+
+#let myGlossary = yaml("GLSS-mho-glossary.yaml")
+#show: init-glossary.with(myGlossary)
+
+#include "/resources/code/typst/0-mho-code-highlighting.typ"
+#show: codly-init.with()

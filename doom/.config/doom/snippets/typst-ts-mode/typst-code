@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: typst-code
+# key: t.code
+# --
+#import "@preview/codly:1.0.0": *
+#show: codly-init.with()
+#include "/resources/code/typst/0-mho-code-highlighting.typ"

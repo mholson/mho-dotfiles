@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: Typst Axiom Environment
+# key: tc.a
+# group: cTheorems
+# --
+
+#let ${1:`(mho/gen-id-snippet)`} = axiom("${2:term}", number: "$1")[
+$0
+]
+#$1 // axim: $2

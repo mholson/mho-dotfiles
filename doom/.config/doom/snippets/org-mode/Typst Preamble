@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: Typst Preamble
+# key: t.p
+# --
+
+#+include: AAWW-typst-preamble.org :lines "8-"
+#+typst: #import "DEFT-tech-defn.typ"

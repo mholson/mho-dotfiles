@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: typst-ctheorems
+# key: t.theorem
+# --
+#import "@preview/ctheorems:1.1.2": *
+#import "/resources/code/typst/0-mho-theorems.typ": *
+#show: thmrules.with(qed-symbol: \$square\$)

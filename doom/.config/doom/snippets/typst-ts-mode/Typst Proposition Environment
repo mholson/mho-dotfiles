@@ -1,0 +1,7 @@
+# key: ct.pr
+# name: Typst Proposition Environment
+# --
+#let ${1:`(mho/gen-id-snippet)`} = proposition(number: "$1")[
+$0
+]
+#$1 // Proposition

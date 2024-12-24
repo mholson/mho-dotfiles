@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: Typst Environment
+# key: t.e
+# --
+#+begin_export typst
+$0
+#+end_export
