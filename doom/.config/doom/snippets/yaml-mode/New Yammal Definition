@@ -1,0 +1,7 @@
+# key: yn
+# name: New Yammal Definition
+# --
+- key: $1
+  short: $2
+  long: $3
+  group: $4
