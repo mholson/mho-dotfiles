@@ -1,0 +1,8 @@
+[package]
+name = "mho-notes"
+version = "0.1.0"
+entrypoint = "mho-notes-lib.typ"
+authors = ["Mark H. Olson"]
+license = "MIT"
+description = "Notes template"
+repository = "https://github.com/mholson/mho-dotfiles/tree/main/typst/typst/packages/local/mho-notes/0.1.0"
