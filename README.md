@@ -14,6 +14,12 @@ stow -t ~ doom
 stow -t /usr/local/texlive/texmf-local/tex/latex/local/ texmf 
 ```
 
+## Typst
+
+```shell
+stow -t "$HOME/Library/Application Support/" typst
+```
+
 ## Beorg 
 To Access Beorg on macOS, I use a symbolic link.
 ```shell
