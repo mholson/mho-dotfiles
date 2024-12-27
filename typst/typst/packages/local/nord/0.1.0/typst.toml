@@ -5,4 +5,4 @@ entrypoint = "lib.typ"
 authors = ["Mark H. Olson"]
 license = "MIT"
 description = "An arctic, north-bluish color palette ported to Typst"
-repository = "https://github.com/mholson/mho-dotfiles/"
+repository = "https://github.com/mholson/mho-dotfiles/tree/main/typst/typst/packages/local/nord/0.1.0"
