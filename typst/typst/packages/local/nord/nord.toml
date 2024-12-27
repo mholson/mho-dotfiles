@@ -1,8 +1,0 @@
-[package]
-name = "typst-nord"
-version = "0.1.0"
-entrypoint = "lib.typ"
-authors = ["Mark H. Olson"]
-license = "MIT"
-description = "An arctic, north-bluish color palette ported to Typst"
-repository = "https://github.com/mholson/typst-nord"
