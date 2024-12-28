@@ -343,6 +343,15 @@ If in dired mode, rename the selected file instead."
    :prefix "n"
    :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
 
+(add-hook 'yaml-mode-hook #'outline-indent-minor-mode)
+(add-hook 'yaml-ts-mode-hook #'outline-indent-minor-mode)
+
+;; YAML
+(dolist (hook '(yaml-mode yaml-ts-mode-hook))
+  (add-hook hook #'(lambda()
+                     (setq-local outline-indent-default-offset 2)
+                     (setq-local outline-indent-shift-width 2)))
+
 (after! yasnippet
   (setq yas-snippet-dirs '("~/.config/doom/snippets"))
 (setq yas-triggers-in-field t))

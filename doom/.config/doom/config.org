@@ -465,6 +465,28 @@ https://github.com/nobiot/org-transclusion
    :prefix "n"
    :desc "Org Transclusion Mode" "t" #'org-transclusion-mode))
 #+end_src
+*** Outline-Indent
+https://github.com/jamescherti/outline-indent.el
+
+Automatic activation for YAML
+#+begin_src emacs-lisp
+(add-hook 'yaml-mode-hook #'outline-indent-minor-mode)
+(add-hook 'yaml-ts-mode-hook #'outline-indent-minor-mode)
+#+end_src
+And setting the default shifts and offsets for YAML
+#+begin_src emacs-lisp
+;; YAML
+(dolist (hook '(yaml-mode yaml-ts-mode-hook))
+  (add-hook hook #'(lambda()
+                     (setq-local outline-indent-default-offset 2)
+                     (setq-local outline-indent-shift-width 2)))
+#+end_src
+**** Default Keymaps (Evil-mode)
+- =zo= open fold(s)
+- =zc= close fold(s)
+- =za= toggle folds
+- =gj= move forward same level
+- =gk= move backward same level
 *** Yasnippets
 **** Yasnippet
 Locating where snippets are located and enabling nested snippets
