@@ -350,7 +350,7 @@ If in dired mode, rename the selected file instead."
 (dolist (hook '(yaml-mode yaml-ts-mode-hook))
   (add-hook hook #'(lambda()
                      (setq-local outline-indent-default-offset 2)
-                     (setq-local outline-indent-shift-width 2)))
+                     (setq-local outline-indent-shift-width 2))))
 
 (after! yasnippet
   (setq yas-snippet-dirs '("~/.config/doom/snippets"))

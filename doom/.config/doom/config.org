@@ -479,7 +479,7 @@ And setting the default shifts and offsets for YAML
 (dolist (hook '(yaml-mode yaml-ts-mode-hook))
   (add-hook hook #'(lambda()
                      (setq-local outline-indent-default-offset 2)
-                     (setq-local outline-indent-shift-width 2)))
+                     (setq-local outline-indent-shift-width 2))))
 #+end_src
 **** Default Keymaps (Evil-mode)
 - =zo= open fold(s)
