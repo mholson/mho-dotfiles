@@ -49,6 +49,7 @@
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
 (unpin! org-roam)
+(unpin! org-mode)
 (package! org-roam-ui)
 (package! org-transclusion)
 (package! aas)
