@@ -526,7 +526,6 @@ If in dired mode, rename the selected file instead."
     (setq mho/org-roam-last-id nil))
 
   (setq org-id-method 'org)
-  (setq org-id-new 'mho/org-id-new)
   )
 
 (defun mho/org-insert-file-link ()

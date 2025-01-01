@@ -701,7 +701,6 @@ Syncing the output
     (setq mho/org-roam-last-id nil))
 
   (setq org-id-method 'org)
-  (setq org-id-new 'mho/org-id-new)
   )
 #+end_src
 *** Links
