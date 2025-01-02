@@ -1,8 +1,6 @@
 # -*- mode: snippet -*-
 # name: StartCalendarInverval
-# uuid:
 # key: plist.startcalendarinterval
-# condition: t
 # --
     <key>StartCalendarInterval</key>
     <array>

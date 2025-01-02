@@ -1,5 +1,7 @@
-# key: ct.pr
+# -*- mode: snippet -*-
 # name: Typst Proposition Environment
+# key: ct.pr
+# group: cTheorems
 # --
 #let ${1:`(mho/gen-id-snippet)`} = proposition(number: "$1")[
 $0
