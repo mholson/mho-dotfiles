@@ -1,8 +1,0 @@
-# -*- mode: snippet -*-
-# name: Jamf Manage
-# uuid:
-# key: plist.jamf.manage
-# condition: t
-# --
-<string>/usr/local/jamf/bin/jamf</string>
-<string>manage</string>

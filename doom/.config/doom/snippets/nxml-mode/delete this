@@ -1,6 +1,0 @@
-# -*- mode: snippet -*-
-# name: delete this
-# key: del
-# --
-<string>$1</string>
-<string>$2</string>
