@@ -426,8 +426,6 @@ If in dired mode, rename the selected file instead."
   (setq org-roam-capture-templates
         '(("d" "default" plain "%?"
            :target (file+head "%(get-and-update-full-id)-${slug}.org" ":PROPERTIES:\n:ID: %(get-and-update-full-id)\n:END:\n#+title: ${title}\n#+date: [%<%Y-%m-%d %a %H:%S>]\n#+filetags:\n\n")
-           ;; The below was used to generate unique IDs based on a unique YYYYMMDDTHHMMSS ID
-           ;;(file+head "%<%y%m%d_%H%M%S>-${slug}.org" ":PROPERTIES:\n:ID: %<%y%m%d_%H%M%S>\n:END:\n#+title: ${title}\n#+date: [%<%Y-%m-%d %a %H:%S>]\n#+filetags: \n#+identifier: %<%Y%m%d_%H%M%S>\n\n")
            :immediate-finish t
            :unnarrowed t)))
   (setq org-roam-dailies-capture-templates
