@@ -937,6 +937,34 @@ Setting the value of the ~org-archive-location~, where
   (interactive)
   (org-map-entries 'org-archive-subtree "/DONE|CANCELLED" 'file))
 #+end_emacs-lisp
+*** Pomodoro
+#+begin_src emacs-lisp
+(after! org-pomodoro
+  (setq org-pomodoro-start-sound "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/head_gestures_double_nod.caf")
+  (setq org-pomodoro-finished-sound "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/payment_success.aif")
+  (setq org-pomodoro-short-break-sound "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/media_handoff.caf")
+  (setq org-pomodoro-long-break-sound "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/media_handoff.caf")
+
+;; Function to play the start sound
+(defun my/org-pomodoro-start-sound ()
+  (start-process-shell-command
+   "org-pomodoro-start-sound" nil "afplay /System/Library/Sounds/Glass.aiff"))
+
+;; Function to play the finish sound
+(defun my/org-pomodoro-finished-sound ()
+  (start-process-shell-command
+   "org-pomodoro-finished-sound" nil "afplay /System/Library/Sounds/Blow.aiff"))
+
+;; Function to play the break sound
+(defun my/org-pomodoro-break-sound ()
+  (start-process-shell-command
+   "org-pomodoro-break-sound" nil "afplay /System/Library/Sounds/Bottle.aiff"))
+
+;; Attach custom sounds to org-pomodoro hooks
+(add-hook 'org-pomodoro-started-hook 'my/org-pomodoro-start-sound)
+(add-hook 'org-pomodoro-finished-hook 'my/org-pomodoro-finished-sound)
+(add-hook 'org-pomodoro-break-finished-hook 'my/org-pomodoro-break-sound))
+#+end_src
 ** Python
 #+begin_src emacs-lisp
 ;;(setq org-babel-python-command "~/anaconda3/bin/python")
