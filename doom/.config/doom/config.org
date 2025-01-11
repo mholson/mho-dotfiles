@@ -433,8 +433,8 @@ If in dired mode, rename the selected file instead."
            :target (file+head "%<%Y-%m-%d>.org"
                               ":PROPERTIES:\n:ID: %<%Y-%m-%d>\n:END:\n#+title: Daily for %<%Y-%m-%d>\n\n")
            :immediate-finish t
-           :unnarrowed t))))
-(setq org-roam-file-ignore-regexp (rx (or "resources" "typst" "daily" "anki" ".pdf" ".typ")))
+           :unnarrowed t)))
+(setq org-roam-file-ignore-regexp (rx (or "resources" "typst" "daily" "anki" ".pdf" ".typ"))))
 (use-package! websocket
   :after org-roam)
 (use-package! org-roam-ui
