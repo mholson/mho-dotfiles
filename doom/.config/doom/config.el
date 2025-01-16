@@ -258,9 +258,9 @@ If in dired mode, rename the selected file instead."
                 (save-buffer)
                 (kill-buffer))
               full_id))))
+    (message "Using ID: %s" mho/org-roam-last-id)  ; Debug output
   mho/org-roam-last-id)
-
-(add-hook 'org-capture-after-finalize-hook (lambda () (setq mho/org-roam-last-id nil)))
+  (add-hook 'org-capture-after-finalize-hook (lambda () (setq mho/org-roam-last-id nil)))
 
 (setq org-roam-directory "~/Documents/mho-roam")
 
@@ -306,13 +306,11 @@ If in dired mode, rename the selected file instead."
         (concat "${id:4}" " " "${title:*} " (propertize "${tags:10}" 'face 'org-tag)))
   (setq org-roam-capture-templates
         '(("d" "default" plain "%?"
-           :target (file+head "%(get-and-update-full-id)-${slug}.org" ":PROPERTIES:\n:ID: %(get-and-update-full-id)\n:END:\n#+title: ${title}\n#+date: [%<%Y-%m-%d %a %H:%S>]\n#+filetags:\n\n")
-           :immediate-finish t
+           :target (file+head "%(get-and-update-full-id)-${slug}.org" ":PROPERTIES:\n:ID: %(get-and-update-full-id)\n:END:\n#+title: ${title}\n#+date: [%<%Y-%m-%d %a %H:%S>]\n#+filetags:\n\n") :immediate-finish t
            :unnarrowed t)))
   (setq org-roam-dailies-capture-templates
         '(("d" "default" plain "%?"
-           :target (file+head "%<%Y-%m-%d>.org"
-                              ":PROPERTIES:\n:ID: %<%Y-%m-%d>\n:END:\n#+title: Daily for %<%Y-%m-%d>\n\n")
+           :target (file+head "%<%Y-%m-%d>.org" ":PROPERTIES:\n:ID: %<%Y-%m-%d>\n:END:\n#+title: Daily for %<%Y-%m-%d>\n\n")
            :immediate-finish t
            :unnarrowed t)))
 (setq org-roam-file-ignore-regexp (rx (or "resources" "typst" "daily" "anki" ".pdf" ".typ"))))
