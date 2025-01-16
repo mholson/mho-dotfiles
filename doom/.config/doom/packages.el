@@ -71,7 +71,8 @@
 ;;(package! catppuccin-theme)
 ;; (package! copilot
 ;;   :recipe (:host github :repo "copilot-emacs/copilot.el" :files ("*.el")))
-(package! typst-ts-mode :recipe (:host sourcehut
-                                 :repo "meow_king/typst-ts-mode"))
+(package! typst-ts-mode :recipe (:host codeberg
+                                 :repo "meow_king/typst-ts-mode"
+                                 :files (:defaults "*.el")))
 (package! ox-typst :recipe (:host github
                                  :repo "jmpunkt/ox-typst"))
