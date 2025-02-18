@@ -1,6 +1,5 @@
 #+title: Doom Emacs Configuration
 #+author: Mark Olson (mho)
-#+startup: fold
 
 * Introduction
 * Personal
@@ -962,6 +961,12 @@ Setting the value of the ~org-archive-location~, where
 (add-hook 'org-pomodoro-started-hook 'my/org-pomodoro-start-sound)
 (add-hook 'org-pomodoro-finished-hook 'my/org-pomodoro-finished-sound)
 (add-hook 'org-pomodoro-break-finished-hook 'my/org-pomodoro-break-sound))
+#+end_src
+*** Startup Options
+It can be a little overwhelming opening a large org-mode file - especially
+my todo list.
+#+begin_src emacs-lips
+(setq org-startup-folded t)
 #+end_src
 ** Python
 #+begin_src emacs-lisp

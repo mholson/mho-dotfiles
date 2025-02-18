@@ -753,6 +753,8 @@ If in dired mode, rename the selected file instead."
 (add-hook 'org-pomodoro-finished-hook 'my/org-pomodoro-finished-sound)
 (add-hook 'org-pomodoro-break-finished-hook 'my/org-pomodoro-break-sound))
 
+(setq org-startup-folded t)
+
 ;;(setq org-babel-python-command "~/anaconda3/bin/python")
 ;;(after! python
 ;;  (setq python-shell-interpreter "~/anaconda3/bin/python"))
