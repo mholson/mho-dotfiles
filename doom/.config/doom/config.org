@@ -1,5 +1,5 @@
 #+title: Doom Emacs Configuration
-#+author: Mark Olson (mho)
+#+author: Mark Olson
 
 * Introduction
 * Personal
