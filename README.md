@@ -29,3 +29,9 @@ To Access Beorg on macOS, I use a symbolic link.
 ```shell
 ln -s ~/Library/Mobile\ Documents/iCloud\~com\~appsonthemove\~beorg/Documents ~/Documents/Beorg 
 ```
+
+## Journally
+The only way to journal
+```shell
+ln -s ~/Library/Mobile\ Documents/iCloud\~com\~xenodium\~Journelly/Documents  ~/Documents/Journelly
+```
