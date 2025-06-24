@@ -159,7 +159,8 @@
        (org               ; organize your plain life in plain text
         +dragndrop
         +pomodoro
-        +pretty
+        +jupyter
+        +dragndrop
         +present
         +roam2
         )
