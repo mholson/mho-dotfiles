@@ -10,6 +10,13 @@ hs.hotkey.bind({}, "F1", function()
 hs.application.launchOrFocus("Emacs")
 end)
 
+-- Launch Emacs Everywhere
+hs.hotkey.bind({"cmd"}, "F1", function()
+  hs.task.new("/opt/homebrew/bin/emacsclient", nil, function()
+    return false
+  end, { "--eval", "(emacs-everywhere)" }):start()
+end)
+
 -- Launch Xcode
 hs.hotkey.bind({}, "F2", function ()
 hs.application.launchOrFocus("Xcode")
