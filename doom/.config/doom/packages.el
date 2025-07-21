@@ -76,3 +76,5 @@
                                  :files (:defaults "*.el")))
 (package! ox-typst :recipe (:host github
                                  :repo "jmpunkt/ox-typst"))
+(package! forester.el :recipe (:host github
+                                 :repo "ToposInstitute/forester.el"))
