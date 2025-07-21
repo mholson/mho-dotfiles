@@ -1,0 +1,16 @@
+# key: doq
+# name: open_question
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "open_question",
+"fields" : {
+"description" : "",
+"question" : "",
+"comment" : ""
+},
+"isIgnored" : false,
+"isComplete" : false,
+"flagState" : "okay"
+}

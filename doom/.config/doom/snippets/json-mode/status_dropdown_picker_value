@@ -1,0 +1,23 @@
+# key: dpn
+# name: DropdownPicker Number
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "dropdownPicker_number",
+"fields" : {
+"privateNote" : "",
+"okayReportNote" : "",
+"warningReportNote" : "",
+"flaggedReportNote" : "",
+"number" : "",
+"select" : "",
+"selectOptions" : [
+"Option 1",
+"Option 2"
+]
+},
+  "isIgnored" : false,
+  "isComplete" : false,
+  "flagState" : "okay"
+}

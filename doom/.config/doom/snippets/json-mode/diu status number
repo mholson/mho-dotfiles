@@ -1,0 +1,23 @@
+# -*- mode: snippet -*-
+# key: diu.status.number
+# name: diu status number
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "status_number",
+"isComplete" : false,
+"isIgnored" : false,
+"flagState" : "okay",
+"fields" : {
+    "okayReportNote" : "",
+    "warningReportNote" : "",
+    "flaggedReportNote" : "",
+    "description" : "",
+    "number" : "",
+    "privateNote" : "",
+    "nextActions" : [
+    ],
+    "questions" : ""
+}
+}

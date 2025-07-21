@@ -1,0 +1,24 @@
+# -*- mode: snippet -*-
+# name: status_dropdown_picker_bool_enabled
+# key: sdpbe
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "status_dropdown_picker_bool",
+"fields" : {
+"comment" : "",
+"description" : "",
+"isEnabled" : false,
+"select" : "",
+"selectOptions" : [
+"Option 1",
+"Option 2"
+]
+},
+"fileState" : {
+"isIgnored" : false,
+"isFlagged" : false,
+"isComplete" : false
+}
+}
