@@ -161,6 +161,10 @@
       (switch-to-buffer "*Calculator*")
       (select-window main-window))))
 
+
+
+(use-package! forester)
+
 (defun rename-buffer-and-file-based-on-org-roam ()
   "Rename the current buffer and the file it is visiting based on Org-roam ID and Title.
 If in dired mode, rename the selected file instead."
