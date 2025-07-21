@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: Documentation_Figure
+# key: doc.fig
+# --
+#figure(
+image("assets/$1.png", width: 100%),
+caption: [
+$0
+]
+)

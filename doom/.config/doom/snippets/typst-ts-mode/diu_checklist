@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name:diu_checklist
+# key:diu.checklist
+# --
+#let all-items = data.fields.selectOptions
+#let checked-items =  data.fields.select
+
+#create-checked-list(all-items, checked-items)

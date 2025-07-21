@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name:diu_nextActions
+# key:diu.nextActions
+# --
+#if data.fields.nextActions.len() > 0 [
+== Next Actions
+
+#for item in data.fields.nextActions [
+#nextAction[#eval_with_scope(item)]
+]
+]
