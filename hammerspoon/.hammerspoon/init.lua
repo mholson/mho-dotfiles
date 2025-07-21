@@ -4,7 +4,6 @@ hs.hotkey.bind({"ctrl", "alt", "cmd"}, "R", function()
 end)
   hs.alert.show("Hammerspoon reloaded")
 
-
 -- Launch Emacs
 hs.hotkey.bind({}, "F1", function()
 hs.application.launchOrFocus("Emacs")

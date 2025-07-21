@@ -172,6 +172,11 @@ Creating a link from the contents of the clipboard.
       ))
 #+end_src
 * Packages
+*** Dired
+Let's hide the details ... until I am ready.
+
+#+begin_src emacs-lisp
+#+end_src
 *** Org-Anki
 https://github.com/eyeinsky/org-anki
 #+begin_src emacs-lisp
@@ -267,7 +272,9 @@ Taken from https://github.com/tecosaur/emacs-config/
       (switch-to-buffer "*Calculator*")
       (select-window main-window))))
 #+end_src
-
+*** Denote
+#+begin_src emacs-lisp
+#+end_src
 *** Forester
 #+begin_src emacs-lisp
 (use-package! forester)
@@ -674,6 +681,7 @@ Syncing the output
 #+begin_src emacs-lisp
 (setq org-directory "~/Documents/mho-roam/")
 #+end_src
+*** Fonts
 *** TagIDs
 #+begin_src emacs-lisp
 (use-package! org
@@ -727,6 +735,7 @@ Easier linking of files.  From tecosaur.
     '((mermaid . t)
       (scheme . t)
       (swift . t)
+      (python . t)
       (your-other-langs . t)))
 #+end_src
 **** Swift
@@ -919,8 +928,6 @@ Easier linking of files.  From tecosaur.
 
 #+end_src
 
-#+RESULTS:
-: ((MEET . #81A1C1) (NEXT . #D08770) (ONGOING . #A3BE8C) (TODO . #88C0D0) (PROJ . #EBCB8B) (WAIT . #8FBCBB) (CANCEL . #BF616A))
 *** Todo list
 **** Set Archive Location
 Setting the value of the ~org-archive-location~, where

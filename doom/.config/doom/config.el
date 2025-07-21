@@ -72,6 +72,8 @@
       "c" #'org-cliplink
       ))
 
+
+
 (use-package! anki-editor
   :after org
   ;;:config
@@ -546,6 +548,7 @@ If in dired mode, rename the selected file instead."
     '((mermaid . t)
       (scheme . t)
       (swift . t)
+      (python . t)
       (your-other-langs . t)))
 
 (use-package! ob-swift
