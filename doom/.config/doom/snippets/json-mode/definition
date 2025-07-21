@@ -1,0 +1,15 @@
+# key: diu.defn
+# name: diu definition
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "definition",
+"fields" : {
+"definitionName" : "",
+"definitionDescription" : ""
+},
+"isIgnored" : false,
+"isComplete" : true,
+"flagState" : "okay"
+}

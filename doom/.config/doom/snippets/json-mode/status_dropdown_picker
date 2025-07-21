@@ -1,0 +1,23 @@
+# -*- mode: snippet -*-
+# name: status_dropdown_picker
+# key: sdp
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "status_dropdown_picker",
+"fields" : {
+"comment" : "",
+"description" : "",
+"select" : "",
+"selectOptions" : [
+"Option 1",
+"Option 2"
+]
+},
+"fileState" : {
+"isIgnored" : false,
+"isFlagged" : false,
+"isComplete" : false
+}
+}

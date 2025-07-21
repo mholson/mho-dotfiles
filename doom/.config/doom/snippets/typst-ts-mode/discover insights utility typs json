@@ -1,0 +1,18 @@
+# -*- mode: snippet -*-
+# name:discover insights utility typs json
+# key: jt
+# --
+
+#import "/typst/typst-config.typ": *
+#let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
+
+#insert_json_content(data, (data) => [
+
+    ==== Description
+    #eval(data.fields.description, mode: "markup")
+
+    ==== $0
+
+    ==== Comments
+    #eval(data.fields.comment, mode: "markup")
+])

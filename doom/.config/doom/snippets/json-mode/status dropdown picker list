@@ -1,0 +1,22 @@
+# key: sdpl
+# name: status dropdown picker list
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "status_dropdown_picker_value",
+"fields" : {
+"comment" : "",
+"description" : "",
+"select" : "",
+"selectOptions" : [
+"Option 1",
+"Option 2"
+],
+"list" : [
+]
+},
+  "isIgnored" : false,
+  "isComplete" : false,
+  "flagState" : "okay"
+}
