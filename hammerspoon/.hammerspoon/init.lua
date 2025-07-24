@@ -36,10 +36,15 @@ hs.hotkey.bind({}, "F5", function()
 hs.application.launchOrFocus("Keynote")
 end)
 
--- Launch Activity Monitor
+-- Launch Pixelmator Pro
 hs.hotkey.bind({}, "F6", function()
-hs.application.launchOrFocus("Activity Monitor")
+hs.application.launchOrFocus("Pixelmator Pro")
 end)
+
+-- Launch Activity Monitor
+-- hs.hotkey.bind({}, "F6", function()
+-- hs.application.launchOrFocus("Activity Monitor")
+-- end)
 
 -- Launch Safari
 hs.hotkey.bind({}, "F7", function()
