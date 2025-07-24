@@ -165,7 +165,76 @@
 
 
 
-(use-package! forester)
+;;(use-package! forester)
+(defun mho/forester--get-title-from-file (filepath)
+  "Extract \\title{...} from the first line of FILEPATH."
+  (with-temp-buffer
+    (insert-file-contents-literally filepath nil 0 200)
+    (goto-char (point-min))
+    (let ((line (buffer-substring-no-properties
+                 (line-beginning-position) (line-end-position))))
+      (if (string-match "\\\\title{\\([^}]+\\)}" line)
+          (string-trim (match-string 1 line))
+        "Untitled"))))
+
+(defun mho/forester--collect-tree-files (root)
+  "Return an alist of (display . full-path) for all .tree files under ROOT.
+If the filename is longer than 4 characters, display '####' as the ID prefix.
+Display format: ID | Title"
+  (let ((files (directory-files-recursively root "\\`[A-Z0-9]+\\.tree\\'")))
+    (mapcar (lambda (file)
+              (let* ((basename (file-name-base (file-name-nondirectory file)))
+                     (id (if (= (length basename) 4)
+                             basename
+                           "####"))
+                     (title (mho/forester--get-title-from-file file))
+                     (display (format "%s | %s" id title)))
+                (cons display file)))
+            files)))
+(defun mho/forester--insert-link (&optional style)
+  "Fuzzy-select a Forester .tree file and insert a link at point.
+If STYLE is 'transclude, insert \\transclude{ID}.
+If STYLE is 'markdown, insert [Title](ID).
+If STYLE is nil, prompt the user."
+  (interactive)
+  (let* ((style (or style
+                    (intern (completing-read "Link style: "
+                                             '("transclude" "markdown")
+                                             nil t))))
+         (root (or (project-root (project-current))
+                   (read-directory-name "Forester root: ")))
+         (candidates (mho/forester--collect-tree-files root))
+         (selection (consult--read (mapcar #'car candidates)
+                                   :prompt "Link to: "
+                                   :require-match t)))
+    (when selection
+      (let* ((filepath (cdr (assoc selection candidates)))
+             (basename (file-name-base (file-name-nondirectory filepath)))
+             (id (if (= (length basename) 4) basename basename)) ;; Always use full ID
+             (title (mho/forester--get-title-from-file filepath)))
+        (insert
+         (pcase style
+           ('transclude (format "\\transclude{%s}" id))
+           ('markdown   (format "[%s](%s)" title id))
+           (_ (user-error "Unknown link style: %s" style))))))))
+;;;###autoload
+(defun forester--find-node ()
+  "Fuzzy-find a Forester .tree file by title or filename using consult."
+  (interactive)
+  (require 'consult)
+  (let* ((root (or (project-root (project-current))
+                   (read-directory-name "Forester root: ")))
+         (candidates (mho/forester--collect-tree-files root))
+         (selection (consult--read (mapcar #'car candidates)
+                                   :prompt "Forester Node: "
+                                   :require-match t)))
+    (when selection
+      (find-file (cdr (assoc selection candidates))))))
+(map! :leader
+      (:prefix ("f")
+      :desc "Forester find node"
+      "n" #'forester--find-node
+      ))
 
 (defun rename-buffer-and-file-based-on-org-roam ()
   "Rename the current buffer and the file it is visiting based on Org-roam ID and Title.
