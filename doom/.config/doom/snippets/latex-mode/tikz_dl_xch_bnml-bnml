@@ -1,5 +1,5 @@
 # -*- mode: snippet -*-
-# name: Distributive Law bnml-bnml Product
+# name: Distributive Law bnml-bnml Product Cross
 # key: tikzdlxchbb
 # --
 \\begin{tikzpicture}[scale=1, auto]

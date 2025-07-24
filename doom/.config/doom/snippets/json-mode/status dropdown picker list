@@ -1,5 +1,6 @@
+# name: diu dropdown and list
 # key: sdpl
-# name: status dropdown picker list
+# group
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
@@ -18,5 +19,5 @@
 },
   "isIgnored" : false,
   "isComplete" : false,
-  "flagState" : "okay"
+  "cmState" : "aligned"
 }

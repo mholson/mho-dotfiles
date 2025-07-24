@@ -1,6 +1,7 @@
 # -*- mode: snippet -*-
-# name: Documentation_Figure
-# key: doc.fig
+# name: diu Insert Figure
+# key: diu.fig
+# group: diu
 # --
 #figure(
 image("assets/$1.png", width: 100%),

@@ -1,6 +1,7 @@
 # -*- mode: snippet -*-
-# name:diu_nextActions
-# key:diu.nextActions
+# name: diu Next Actions
+# key: diu.na
+# group: diu
 # --
 "nextActions" : [
 

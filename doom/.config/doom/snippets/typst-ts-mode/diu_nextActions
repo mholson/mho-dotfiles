@@ -1,6 +1,7 @@
 # -*- mode: snippet -*-
-# name:diu_nextActions
-# key:diu.nextActions
+# name:diu Insert Next Actions
+# key:diu.na
+# group: diu
 # --
 #if data.fields.nextActions.len() > 0 [
 == Next Actions

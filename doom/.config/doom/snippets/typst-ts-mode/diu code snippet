@@ -1,0 +1,9 @@
+# key: diu.code
+# name: diu code snippet
+# group: diu
+# --
+#codesnippet[
+\`\`\`${1:language}
+$0
+\`\`\`
+]

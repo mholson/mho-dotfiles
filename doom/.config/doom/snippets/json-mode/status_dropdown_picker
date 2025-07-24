@@ -1,23 +1,30 @@
 # -*- mode: snippet -*-
-# name: status_dropdown_picker
-# key: sdp
+# name: diu dropdown
+# key: diu.dropdown
+# group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
 "title" : "$0",
-"schemaName" : "status_dropdown_picker",
+"isComplete": false,
+"isIgnored" : false,
+"contentModuleState": "aligned",
+"isRequired": false,
+"schemaName" : "dropdown_cmState",
 "fields" : {
-"comment" : "",
+"alignedNote": "",
+"questions": [],
+"improvementNote": "",
+"barrierNote": "",
+"privateNote" : "",
 "description" : "",
 "select" : "",
 "selectOptions" : [
 "Option 1",
 "Option 2"
-]
-},
-"fileState" : {
-"isIgnored" : false,
-"isFlagged" : false,
-"isComplete" : false
+],
+    "nextActions" : [
+
+    ]
 }
 }

@@ -1,5 +1,6 @@
 # key: diu.defn
 # name: diu definition
+# group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
@@ -11,5 +12,6 @@
 },
 "isIgnored" : false,
 "isComplete" : true,
-"flagState" : "okay"
+"isRequired" : true,
+"cmState" : "aligned"
 }

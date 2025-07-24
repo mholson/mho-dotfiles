@@ -1,12 +1,10 @@
 # -*- mode: snippet -*-
-# name:diu insert json content
-# key: jt
+# name:diu insert json link
+# key: jtl
 # group: diu
 # --
 
 #import "/typst/lib.typ": *
 #let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
 
-#insert_content(data, (data) => [
-$0
-])
+#insert_(data, includeLink: true,(data) => [])

@@ -1,5 +1,6 @@
-# key: diu.document.text
-# name: diu document text
+# name: diu report note
+# key: diu.rn
+# group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
@@ -11,5 +12,5 @@
 },
 "isIgnored" : false,
 "isComplete" : false,
-"flagState" : "okay"
+"cmState" : "aligned"
 }
