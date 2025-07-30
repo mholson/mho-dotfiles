@@ -53,7 +53,10 @@
 (global-set-key (kbd "C-å") 'sp-wrap-curly)
 ;;(global-set-key (kbd "C-ä") 'sp-up-sexp)
 (global-set-key (kbd "M-o") 'sp-up-sexp)
+(global-set-key (kbd "M-b") 'sp-down-sexp)
 (global-set-key (kbd "M-w") 'save-buffer)
+(global-set-key (kbd "C-<") "{")
+(define-key key-translation-map (kbd "§") (kbd "\\"))
 
 (map! :leader
       :desc "Run mho/gen-id"
@@ -166,6 +169,74 @@
 
 
 ;;(use-package! forester)
+
+(defun mho/forester--date ()
+  "Insert the current date in Typst \\date{...} format at point.
+Example: \\date{2025-07-25T09:10:46+02:00}"
+  (interactive)
+  (let ((raw (format-time-string "%Y-%m-%dT%H:%M:%S%z")))
+    (insert (format "\\date{%s:%s}"
+                    (substring raw 0 -2)
+                    (substring raw -2)))))
+
+(defun mho/forester--create-weeknote-file ()
+  "Create a weeknotes .tree file named YYYY-Www.tree without using a generated ID."
+  (interactive)
+  (let* ((target-dir "~/GitHub/mho-forest/trees/weeknotes/")
+         (current-time (current-time))
+         (week-id (format-time-string "%Y-W%V" current-time))
+         (filename (expand-file-name (concat week-id ".tree") target-dir))
+         (title (format "Weeknotes %s" week-id))
+         (iso-datetime
+          (let* ((raw (format-time-string "%Y-%m-%dT%H:%M:%S%z" current-time)))
+            (concat (substring raw 0 -2) ":" (substring raw -2))))
+         (author "markholson")
+         (template (format "\\title{%s}
+\\date{%s}
+\\author{%s}
+" title iso-datetime author)))
+    (if (file-exists-p filename)
+        (user-error "File already exists: %s" filename)
+      (find-file filename)
+      (insert template)
+      (save-buffer)
+      (message "Created weeknotes file: %s" filename))))
+
+(defun mho/forester--create-tree-file ()
+  "Create a new .tree file using a generated ID and a user-provided title."
+  (interactive)
+  (let* ((id-file "~/Documents/mho-roam/resources/code/shell/TAGS-tagids.txt")
+         (target-dir "~/GitHub/mho-forest/trees/")
+         (buffer (find-file-noselect id-file))
+         full-id)
+    ;; Step 1: Get next available ID
+    (with-current-buffer buffer
+      (goto-char (point-min))
+      (let ((first-id (string-trim (buffer-substring-no-properties (point) (line-end-position)))))
+        (setq full-id first-id)
+        (if (yes-or-no-p (format "Use and remove ID: %s?" full-id))
+            (progn
+              (delete-region (point) (1+ (line-end-position)))
+              (save-buffer)
+              (kill-buffer))
+          (user-error "Aborted by user"))))
+
+    ;; Step 2: Prompt for title
+    (let* ((title (read-string "Enter title: "))
+           (filename (expand-file-name (concat full-id ".tree") target-dir))
+           (iso-datetime
+            (let* ((raw (format-time-string "%Y-%m-%dT%H:%M:%S%z" (current-time))))
+              (concat (substring raw 0 -2) ":" (substring raw -2))))
+           (author "markholson")
+           (template (format "\\title{%s}
+\\date{%s}
+\\author{%s}
+" title iso-datetime author)))
+      (find-file filename)
+      (insert template)
+      (save-buffer)
+      (message "Created tree file: %s" filename))))
+
 (defun mho/forester--get-title-from-file (filepath)
   "Extract \\title{...} from the first line of FILEPATH."
   (with-temp-buffer
@@ -181,7 +252,7 @@
   "Return an alist of (display . full-path) for all .tree files under ROOT.
 If the filename is longer than 4 characters, display '####' as the ID prefix.
 Display format: ID | Title"
-  (let ((files (directory-files-recursively root "\\`[A-Z0-9]+\\.tree\\'")))
+(let ((files (directory-files-recursively root "\\.tree\\'")))
     (mapcar (lambda (file)
               (let* ((basename (file-name-base (file-name-nondirectory file)))
                      (id (if (= (length basename) 4)
@@ -218,7 +289,8 @@ If STYLE is nil, prompt the user."
            ('markdown   (format "[%s](%s)" title id))
            (_ (user-error "Unknown link style: %s" style))))))))
 ;;;###autoload
-(defun forester--find-node ()
+
+(defun mho/forester--find-node ()
   "Fuzzy-find a Forester .tree file by title or filename using consult."
   (interactive)
   (require 'consult)
@@ -230,10 +302,70 @@ If STYLE is nil, prompt the user."
                                    :require-match t)))
     (when selection
       (find-file (cdr (assoc selection candidates))))))
+
+(defun mho/insert-subtree ()
+  "Insert a \\subtree[ID]{\\title{...}} block using a generated 4-character ID and a user-provided title."
+  (interactive)
+  (let* ((id-file "~/Documents/mho-roam/resources/code/shell/TAGS-tagids.txt")
+         (buffer (find-file-noselect id-file))
+         full-id)
+    ;; Step 1: Get and confirm use of next available ID
+    (with-current-buffer buffer
+      (goto-char (point-min))
+      (let ((first-id (string-trim (buffer-substring-no-properties (point) (line-end-position)))))
+        (setq full-id first-id)
+        (if (yes-or-no-p (format "Use and remove ID: %s for subtree?" full-id))
+            (progn
+              (delete-region (point) (1+ (line-end-position)))
+              (save-buffer)
+              (kill-buffer))
+          (user-error "Aborted by user"))))
+
+    ;; Step 2: Prompt for title
+    (let ((title (read-string "Subtree title: ")))
+      ;; Step 3: Insert the subtree block
+      (insert (format "\\subtree[%s]{\n  \\title{%s}\n\n}\n" full-id title)))))
+
+(map! :leader
+      (:prefix ("d" . "Forester")
+      :desc "Find Tree"
+      "f" #'mho/forester--find-node
+      ))
+
 (map! :leader
       (:prefix ("f")
       :desc "Forester find node"
-      "n" #'forester--find-node
+      "n" #'mho/forester--find-node
+      ))
+
+(map! :leader
+      (:prefix ("d" . "Forester")
+      :desc "Date Insert"
+      "d" #'mho/forester--date
+      ))
+
+(map! :leader
+      (:prefix ("d" . "Forester")
+      :desc "Link Insert"
+      "l" #'mho/forester--insert-link
+      ))
+
+(map! :leader
+      (:prefix ("d" . "Forester")
+      :desc "Tree Insert"
+      "n" #'mho/forester--create-tree-file
+      ))
+
+(map! :leader
+      (:prefix ("d" . "Forester")
+      :desc "Subtree Insert"
+      "s" #'mho/insert-subtree
+      ))
+
+(map! :leader
+      (:prefix ("d" . "Forester")
+      :desc "Weeknote"
+      "w" #'mho/forester--create-weeknote-file
       ))
 
 (defun rename-buffer-and-file-based-on-org-roam ()
