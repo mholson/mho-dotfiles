@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: diu list check emoji
+# key: diu+lic
+# group: diu
+# --
+
+#if data.fields.list.len() > 0 [
+#generate-checked-list(data.fields.list)
+]

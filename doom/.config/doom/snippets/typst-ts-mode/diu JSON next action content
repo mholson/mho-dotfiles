@@ -1,0 +1,19 @@
+# -*- mode: snippet -*-
+# key: jt+na
+# name: diu JSON next action content
+# --
+#import "/typst/lib.typ": *
+#let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
+
+#insert_content(data, (data) => [
+
+$0
+
+#if data.fields.nextActions.len() > 0 [
+    == Next Actions
+
+    #for item in data.fields.nextActions [
+        #nextAction[#eval_with_scope(item)]
+    ]
+]
+])

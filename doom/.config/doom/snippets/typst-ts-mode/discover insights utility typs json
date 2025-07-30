@@ -1,5 +1,5 @@
 # -*- mode: snippet -*-
-# name:diu insert json content
+# name:diu JSON content
 # key: jt
 # group: diu
 # --
@@ -8,5 +8,6 @@
 #let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
 
 #insert_content(data, (data) => [
+
 $0
 ])

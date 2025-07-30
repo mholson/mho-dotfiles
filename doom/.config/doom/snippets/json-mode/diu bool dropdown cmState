@@ -1,30 +1,32 @@
 # -*- mode: snippet -*-
-# name: diu dropdown list cmState
-# key: diu+dd+li+cm
+# name: diu boolEnabled dropdown cmState
+# key: diu+bool+dd+cm
+# group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
 "title" : "$0",
-"schemaName" : "list_dropdown_cmState",
+"schemaName" : "boolEnabled_dropdown_cmState",
 "contentModuleState": "aligned",
 "isRequired": false,
 "isIgnored" : false,
 "isFlagged" : false,
-"isComplete" : false
+"isComplete" : false,
 "fields" : {
-"comment" : "",
-"alignedNote": "",
 "description" : "",
+"alignedNote": "",
 "improvementNote": "",
 "barrierNote": "",
 "privateNote" : "",
 "isEnabled" : false,
+"questions" : [
+
+],
 "select" : "",
 "selectOptions" : [
 "Option 1",
 "Option 2"
-]
-},
-"list" : []
+],
 "nextActions" : []
+}
 }

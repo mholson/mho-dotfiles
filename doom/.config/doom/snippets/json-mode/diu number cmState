@@ -1,11 +1,12 @@
 # -*- mode: snippet -*-
-# name: diu dropdown list cmState
-# key: diu+dd+li+cm
+# name: diu number cmState
+# key: diu+numb+cm
+# group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
 "title" : "$0",
-"schemaName" : "list_dropdown_cmState",
+"schemaName" : "number_cmState",
 "contentModuleState": "aligned",
 "isRequired": false,
 "isIgnored" : false,
@@ -18,13 +19,6 @@
 "improvementNote": "",
 "barrierNote": "",
 "privateNote" : "",
-"isEnabled" : false,
-"select" : "",
-"selectOptions" : [
-"Option 1",
-"Option 2"
-]
-},
-"list" : []
+"number" : "",
 "nextActions" : []
 }

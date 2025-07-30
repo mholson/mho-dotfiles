@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: diu label override
+# key: diu+labelOverride
+# group: diu
+# --
+"$1LabelOverride" : "$0",

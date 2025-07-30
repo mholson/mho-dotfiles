@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name:diu insert list
+# key: diu+li
+# group: diu
+# --
+
+#if data.fields.list.len() > 0 [
+#generate-list(data.fields.list)
+]

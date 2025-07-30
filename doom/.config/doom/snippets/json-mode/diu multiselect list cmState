@@ -1,0 +1,33 @@
+# name: diu multiselect list cmState
+# key: diu+multi+li+cm
+# group: diu
+# --
+{
+"id" : "${1:`(upcase (uuidgen-4))`}",
+"title" : "$0",
+"schemaName" : "multiSelect_list_cmState",
+"fields" : {
+"comment" : "",
+"alignedNote": "",
+"improvementNote": "",
+"barrierNote": "",
+"privateNote" : "",
+"description" : "",
+"questions": [],
+"select" : "",
+"selectOptions" : [
+"Option 1",
+"Option 2"
+],
+"nextActions" : [
+
+],
+"list" : [
+
+]
+},
+  "isIgnored" : false,
+  "isComplete" : false,
+  "isRequired": false,
+  "contentModuleState": "aligned"
+}
