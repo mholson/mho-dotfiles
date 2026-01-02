@@ -55,7 +55,7 @@
 (global-set-key (kbd "M-o") 'sp-up-sexp)
 (global-set-key (kbd "M-b") 'sp-down-sexp)
 (global-set-key (kbd "M-w") 'save-buffer)
-(global-set-key (kbd "C-<") "{")
+;;(global-set-key (kbd "C-<") "{")
 (define-key key-translation-map (kbd "§") (kbd "\\"))
 
 (map! :leader
@@ -368,60 +368,120 @@ If STYLE is nil, prompt the user."
       "w" #'mho/forester--create-weeknote-file
       ))
 
-(defun rename-buffer-and-file-based-on-org-roam ()
-  "Rename the current buffer and the file it is visiting based on Org-roam ID and Title.
-If in dired mode, rename the selected file instead."
-  (interactive)
-  (if (derived-mode-p 'dired-mode)
-      ;; Handle renaming in dired mode
-      (let ((file (dired-get-file-for-visit)))
-        (with-temp-buffer
-          (insert-file-contents file)
-          (let (id title new-name)
-            ;; Extract the ID
-            (when (re-search-forward "^:ID:\\s-+\\([A-Za-z0-9-]+\\)" nil t)
-              (setq id (match-string 1)))
-            ;; Extract the Title
-            (goto-char (point-min))
-            (when (re-search-forward "^#\\+TITLE:\\s-+\\(.+\\)" nil t)
-              (setq title (match-string 1)))
-            ;; Convert Title to kebab-case
-            (when title
-              (setq title (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" (downcase title)))
-              (setq new-name (concat id "-" title)))
-            ;; Rename file
-            (when (and id title)
-              (let ((new-file-name (concat (file-name-directory file) new-name ".org")))
-                (rename-file file new-file-name 1)
-                (revert-buffer)
-                (dired-revert)
-                (message "Renamed %s to %s" file new-file-name))))))
-    ;; Handle renaming in org-mode
-    (when (derived-mode-p 'org-mode)
-      (save-excursion
-        (goto-char (point-min))
-        (let (id title new-name)
-          ;; Extract the ID
-          (when (re-search-forward "^:ID:\\s-+\\([A-Za-z0-9-]+\\)" nil t)
-            (setq id (match-string 1)))
-          ;; Extract the Title
-          (goto-char (point-min))
-          (when (re-search-forward "^#\\+TITLE:\\s-+\\(.+\\)" nil t)
-            (setq title (match-string 1)))
-          ;; Convert Title to kebab-case
-          (when title
-            (setq title (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" (downcase title)))
-            (setq new-name (concat id "-" title)))
-          ;; Rename buffer and file
-          (when (and id title)
-            (let ((new-file-name (concat (file-name-directory (buffer-file-name)) new-name ".org")))
-              (rename-file (buffer-file-name) new-file-name 1)
-              (set-visited-file-name new-file-name)
-              (rename-buffer new-name)
-              (save-buffer)
-              (message "Renamed buffer and file to %s" new-name))))))))
+;;; --- Rename Org file/buffer based on :ID: and #+title ------------------------
 
-(global-set-key (kbd "C-c r") 'rename-buffer-and-file-based-on-org-roam)
+(defun mho/org--slugify-underscore (s)
+  "Convert S to a lowercase underscore_slug for filenames."
+  (let* ((s (downcase (string-trim (or s ""))))
+         ;; Replace anything not alnum with underscores
+         (s (replace-regexp-in-string "[^a-z0-9]+" "_" s))
+         ;; Collapse runs of underscores
+         (s (replace-regexp-in-string "_\\{2,\\}" "_" s))
+         ;; Trim underscores at ends
+         (s (replace-regexp-in-string "\\`_+\\|_+\\'" "" s)))
+    s))
+
+(defun mho/org--read-file-preamble (file)
+  "Return a plist (:id ID :title TITLE) by scanning FILE quickly."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (let (id title)
+      (goto-char (point-min))
+      (when (re-search-forward "^:ID:\\s-*\$begin:math:text$\.\+\\$end:math:text$$" nil t)
+        (setq id (string-trim (match-string 1))))
+      (goto-char (point-min))
+      (when (re-search-forward "^#\\+title:\\s-*\$begin:math:text$\.\*\\$end:math:text$$" nil t)
+        (setq title (string-trim (match-string 1))))
+      (list :id id :title title))))
+
+(defun mho/org--extract-id-and-title ()
+  "Extract file-level :ID: and #+title: from the current buffer.
+Returns a plist (:id ID :title TITLE)."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t) ;; makes #+TITLE/# +title match
+          id title)
+      ;; ID: tolerate alignment whitespace, capture token only (your style)
+      (when (re-search-forward "^[ \t]*:ID:\\s-+\\([A-Za-z0-9-]+\\)" nil t)
+        (setq id (match-string 1)))
+
+      ;; TITLE: tolerate lowercase + extra spaces
+      (goto-char (point-min))
+      (when (re-search-forward "^[ \t]*#\\+TITLE:\\s-*\\(.+\\S-\\)\\s-*$" nil t)
+        (setq title (match-string 1)))
+
+      (list :id id :title title))))
+
+(defun mho/org--make-new-basename (id title)
+  "Build base filename: ID or ID--slug_title (underscored) if title exists."
+  (unless (and id (not (string-empty-p (string-trim id))))
+    (error "No :ID: found"))
+  (let* ((title (string-trim (or title "")))
+         (slug  (mho/org--slugify-underscore title)))
+    (if (string-empty-p slug)
+        id
+      (format "%s--%s" id slug))))
+
+(defun mho/org--unique-path (path)
+  "If PATH exists, append _2, _3, ... before extension until unique."
+  (if (not (file-exists-p path))
+      path
+    (let* ((dir (file-name-directory path))
+           (base (file-name-base path))
+           (ext  (file-name-extension path t))
+           (n 2)
+           candidate)
+      (while (progn
+               (setq candidate (expand-file-name (format "%s_%d%s" base n ext) dir))
+               (file-exists-p candidate))
+        (setq n (1+ n)))
+      candidate)))
+
+(defun mho/rename-org-file-based-on-id (&optional file)
+  "Rename an Org FILE (or current Org buffer file) using :ID: and #+title.
+New base name:
+  - ID--title_with_underscores  (if title exists)
+  - ID                         (if title missing/empty)
+Works in Dired (file at point) or Org buffers (visited file + buffer)."
+  (interactive)
+  (let* ((in-dired (derived-mode-p 'dired-mode))
+         (file (or file
+                   (when in-dired (dired-get-file-for-visit))
+                   (buffer-file-name))))
+    (unless (and file (file-exists-p file))
+      (error "No file to rename"))
+    (unless (string-match-p "\\.org\\'" file)
+      (error "Not an .org file: %s" file))
+
+    (let* ((meta (if (and (not in-dired) (derived-mode-p 'org-mode))
+                     (mho/org--extract-id-and-title)
+                   (mho/org--read-file-preamble file)))
+           (id (plist-get meta :id))
+           (title (plist-get meta :title))
+           (new-base (mho/org--make-new-basename id title))
+           (dir (file-name-directory file))
+           (new-path (expand-file-name (concat new-base ".org") dir))
+           (new-path (mho/org--unique-path new-path))
+           (old-path file))
+
+      (rename-file old-path new-path 1)
+
+      (cond
+       (in-dired
+        (revert-buffer)
+        (dired-goto-file new-path)
+        (message "Renamed: %s → %s" old-path new-path))
+
+       ((derived-mode-p 'org-mode)
+        (set-visited-file-name new-path t t)
+        (rename-buffer (file-name-nondirectory new-path) t)
+        (save-buffer)
+        (message "Renamed buffer+file: %s" (file-name-nondirectory new-path)))
+
+       (t
+        (message "Renamed file: %s" new-path))))))
+
+(global-set-key (kbd "C-c r") #'mho/rename-org-file-based-on-id)
 
 (defun mho/gen-id ()
   "Generate a full_id composed of a date stamp and the first available ID from a
@@ -553,6 +613,118 @@ If in dired mode, rename the selected file instead."
   (add-hook hook #'(lambda()
                      (setq-local outline-indent-default-offset 2)
                      (setq-local outline-indent-shift-width 2))))
+
+(setq vulpea-db-sync-directories '("~/org/"))
+(setq vulpea-create-default-template
+      '(:file-name "%(org-id-new)--${slug}.org"
+        :tags ("inbox")
+        :head "#+created: %<[%Y-%m-%d]>"
+        :properties (("CREATED" . "%<[%Y-%m-%d]>"))))
+(vulpea-db-autosync-mode +1)
+
+(defcustom mho/id-pool-file
+  (expand-file-name "TAGS-tagids.txt" "~/Documents/mho-roam/resources/code/shell/")
+  "File containing one unused ID per line (e.g., 4 chars)."
+  :type 'file)
+
+(defun mho/id--normalize (s)
+  "Trim and normalize an ID string."
+  (string-trim (or s "")))
+
+(defun mho/id--valid-p (id)
+  "Validate a 4-char ID. Adjust regex if you only want lowercase, etc."
+  (string-match-p "\\`[A-Za-z0-9]\\{4\\}\\'" id))
+
+(defun mho/id-pool-pop ()
+  "Pop the first available ID from `mho/id-pool-file` and remove it from the file."
+  (unless (file-readable-p mho/id-pool-file)
+    (error "ID pool file not readable: %s" mho/id-pool-file))
+  (let* ((lines (with-temp-buffer
+                  (insert-file-contents mho/id-pool-file)
+                  (split-string (buffer-string) "\n" t)))
+         (next (mho/id--normalize (car lines)))
+         (rest (cdr lines)))
+    (unless (and next (not (string-empty-p next)))
+      (error "ID pool is empty: %s" mho/id-pool-file))
+    (unless (mho/id--valid-p next)
+      (error "Invalid ID in pool (expected 4 chars): %S" next))
+    ;; Rewrite file without the first line
+    (with-temp-file mho/id-pool-file
+      (insert (mapconcat #'identity rest "\n"))
+      (when rest (insert "\n")))
+    next))
+
+;;;; --- Unified org-id-new session cache (Vulpea + org-capture) ---------------
+
+(defvar mho/use-short-ids t
+  "When non-nil, generate IDs from `mho/id-pool-file` instead of UUIDs.")
+
+(defvar mho/org-id-new--session-active nil
+  "Non-nil when we want org-id-new to reuse a single ID across the note-creation session.")
+
+(defvar mho/org-id-new--session-cache nil
+  "Alist cache for org-id-new during an active session. Key is PREFIX string, value is ID.")
+
+(defun mho/org-id-new--session-begin ()
+  "Begin a new ID session (clears cache)."
+  (setq mho/org-id-new--session-active t
+        mho/org-id-new--session-cache nil))
+
+(defun mho/org-id-new--session-end ()
+  "End the current ID session (clears cache)."
+  (setq mho/org-id-new--session-active nil
+        mho/org-id-new--session-cache nil))
+
+(defun mho/org-id-new-around (orig-fn &optional prefix)
+  "Use pool IDs when enabled. If a session is active, reuse the same ID."
+  (if (not mho/use-short-ids)
+      (funcall orig-fn prefix)
+    (let* ((pfx (or prefix "")))
+      (if mho/org-id-new--session-active
+          (or (cdr (assoc pfx mho/org-id-new--session-cache))
+              (let ((id (mho/id-pool-pop)))
+                (when (and prefix (not (string-empty-p prefix)))
+                  (setq id (concat prefix id)))
+                (push (cons pfx id) mho/org-id-new--session-cache)
+                id))
+        ;; No session: pop fresh every call
+        (let ((id (mho/id-pool-pop)))
+          (if (and prefix (not (string-empty-p prefix)))
+              (concat prefix id)
+            id))))))
+
+(with-eval-after-load 'org-id
+  ;; Ensure we don't stack multiple advices
+  (advice-remove 'org-id-new #'mho/org-id-new-around)
+  (advice-add 'org-id-new :around #'mho/org-id-new-around))
+
+;; Make sure the session ends when capture ends (finalize OR abort)
+(with-eval-after-load 'org-capture
+  (add-hook 'org-capture-after-finalize-hook #'mho/org-id-new--session-end)
+  (add-hook 'org-capture-kill-hook           #'mho/org-id-new--session-end))
+
+;; Start the session *before* Vulpea computes the file name (critical)
+(with-eval-after-load 'vulpea
+  (defun mho/vulpea-create-around (orig-fn &rest args)
+    (mho/org-id-new--session-begin)
+    (condition-case err
+        (apply orig-fn args)
+      (error
+       ;; If Vulpea errors before capture starts, don't leave session on
+       (mho/org-id-new--session-end)
+       (signal (car err) (cdr err)))))
+
+  (advice-add 'vulpea-create :around #'mho/vulpea-create-around))
+
+(defun mho/vulpea-describe-with-id (note)
+  "Show ID in a fixed left column, then the title."
+  (let ((id (or (vulpea-note-id note) "----"))
+        (title (vulpea-note-title note)))
+    ;; 6 gives you: 'ABCD␠␠' then title; tweak to taste
+    (format "%-6s%s" id title)))
+
+(with-eval-after-load 'vulpea
+  (setq vulpea-select-describe-fn #'mho/vulpea-describe-with-id))
 
 (after! yasnippet
   (setq yas-snippet-dirs '("~/.config/doom/snippets"))
