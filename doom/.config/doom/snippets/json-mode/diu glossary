@@ -1,24 +1,22 @@
 # -*- mode: snippet -*-
-# name: diu number cmState
-# key: diu+numb+cm
+# name: diu glossary
+# key: diu+gloss
 # group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
 "title" : "$0",
-"schemaName" : "number_cmState",
+"schemaName" : "glossary",
 "contentModuleState": "aligned",
 "isRequired": false,
 "isIgnored" : false,
 "isFlagged" : false,
 "isComplete" : false,
 "fields" : {
-"alignedNote": "",
-"description" : "",
-"improvementNote": "",
-"barrierNote": "",
-"privateNote" : "",
-"number" : "",
-"nextActions" : []
+    "key": "",
+    "short": "",
+    "long": "",
+    "description": "",
+    "group": ""
 }
 }

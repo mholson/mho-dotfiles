@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: diu includeLink
+# key: diu+insertLink
+# --
+
+#insert_content(link, includeLink: true,(link) => [])

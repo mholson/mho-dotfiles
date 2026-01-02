@@ -7,4 +7,4 @@
 #import "/typst/lib.typ": *
 #let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
 
-#insert_(data, includeLink: true,(data) => [])
+#insert_content(data, includeLink: true,(data) => [])

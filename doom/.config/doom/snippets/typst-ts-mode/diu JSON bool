@@ -1,0 +1,23 @@
+# key: jt+bool
+# name: diu JSON bool
+# --
+#import "/typst/lib.typ": *
+#let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
+
+#insert_content(data, cmStateOptions: "none", includeNote: false, (data) => [
+
+    #if data.fields.isEnabled [
+        #eval_with_scope(data.fields.isTrue)
+    ] else [
+        #eval_with_scope(data.fields.isFalse)
+    ]
+$0
+
+    #if data.fields.nextActions.len() > 0 [
+        == Next Actions
+
+        #for item in data.fields.nextActions [
+            #nextAction[#eval_with_scope(item)]
+        ]
+    ]
+])

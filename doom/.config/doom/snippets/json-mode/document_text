@@ -1,5 +1,5 @@
 # name: diu report note
-# key: diu.rn
+# key: diu+rn
 # group: diu
 # --
 {
@@ -12,5 +12,6 @@
 },
 "isIgnored" : false,
 "isComplete" : false,
-"cmState" : "aligned"
+"isStarred" : false,
+"isRequired" : true
 }

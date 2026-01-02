@@ -1,13 +1,12 @@
 # -*- mode: snippet -*-
-# name: diu boolEnabled dropdown cmState
+# name: diu bool dropdown cmState
 # key: diu+bool+dd+cm
 # group: diu
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
 "title" : "$0",
-"schemaName" : "boolEnabled_dropdown_cmState",
-"contentModuleState": "aligned",
+"schemaName" : "bool_dropdown_cmState",
 "isRequired": false,
 "isIgnored" : false,
 "isFlagged" : false,

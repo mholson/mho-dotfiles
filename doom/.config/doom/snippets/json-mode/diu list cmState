@@ -1,25 +1,24 @@
 # -*- mode: snippet -*-
-# name: diu bool cmState
-# key: diu+bool+cm
-# group: diu
+# name: diu list cmState
+# key: diu+list
 # --
 {
 "id" : "${1:`(upcase (uuidgen-4))`}",
 "title" : "$0",
-"schemaName" : "bool_cmState",
+"schemaName" : "list_cmState",
 "contentModuleState": "aligned",
 "isRequired": false,
 "isIgnored" : false,
 "isFlagged" : false,
-"isComplete" : false,
+"isComplete" : false
 "fields" : {
+"comment" : "",
 "alignedNote": "",
 "description" : "",
 "improvementNote": "",
 "barrierNote": "",
 "privateNote" : "",
-"questions" : [],
-"isEnabled" : false,
+"list" : [],
 "nextActions" : []
 }
 }

@@ -1,0 +1,10 @@
+# key: jt+report
+# name: diu JSON Report
+# --
+#import "/typst/lib.typ": *
+#let data = json("${1:`(file-name-sans-extension (buffer-name))`.json}")
+
+#insert_content(data, cmStateOptions: "none", (data) => [
+
+$0
+])
