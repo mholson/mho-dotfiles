@@ -55,6 +55,7 @@
 (package! laas)
 (package! lorem-ipsum)
 (package! denote)
+(package! vulpea)
 (package! outline-indent)
 (package! ob-mermaid)
 (package! ob-swift)
