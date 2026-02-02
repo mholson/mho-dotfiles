@@ -51,15 +51,18 @@
 (unpin! org-roam)
 (package! org-roam-ui)
 (package! org-transclusion)
+(package! org-super-agenda)
 (package! aas)
 (package! laas)
 (package! lorem-ipsum)
-(package! denote)
 (package! vulpea)
+(package! vulpea-ui)
+(package! vui)
+(package! vulpea-journal :recipe (:host github :repo "d12frosted/vulpea-journal"))
 (package! outline-indent)
 (package! ob-mermaid)
 (package! ob-swift)
-(package! denote-explore)
+;;(package! denote-explore)
 (package! keycast :recipe (:host github
                            :repo "tarsius/keycast"
                            :files ("*.el" "Makefile")))
@@ -67,6 +70,9 @@
                            :repo "johnbcoughlin/calctex"
                            :files ("*.el" "calctex/*.el" "calctex-contrib/*.el" "org-calctex/*.el" "vendor")))
 
+(package! screenshot :recipe (:host github
+                           :repo "tecosaur/screenshot"
+                           :files ("*.el" "screenshot/*.el" )))
 (package! anki-editor :recipe (:host github
                              :repo "anki-editor/anki-editor"))
 ;;(package! catppuccin-theme)
@@ -77,6 +83,3 @@
                                  :files (:defaults "*.el")))
 (package! ox-typst :recipe (:host github
                                  :repo "jmpunkt/ox-typst"))
-;; (package! forester
-;;   :recipe (:host github
-;;            :repo "ToposInstitute/forester.el"))
