@@ -98,11 +98,8 @@
        :desc "Clear DB"       "c" #'vulpea-db-clear
        :desc "Find"           "f" #'vulpea-find
        :desc "Heading ID"     "h" #'mho/vulpea-get-create-heading-from-pool
-       ;; Insert/create
-       :desc "Insert"         "i" #'vulpea-insert
-       :desc "Insert (next ID)" "I" #'mho/vulpea-insert-with-next-id
-       :desc "Insert (choose ID)" "J" #'mho/vulpea-insert-with-chosen-id
-       :desc "Get note by ID" "j" #'vulpea-db-get-file-by-id
+       :desc "Insert (next ID)" "i" #'mho/vulpea-insert-with-next-id
+       :desc "Insert (choose ID)" "j" #'mho/vulpea-insert-with-chosen-id
        (:prefix ("m" . "metadata")
         :desc "Add"    "a" #'vulpea-meta-add
         :desc "Remove" "r" #'vulpea-meta-remove)
@@ -271,11 +268,11 @@ If STYLE is nil, prompt."
   (interactive)
   (org-map-entries #'org-archive-subtree "/DONE|XOUT" 'file))
 
-;;;; ------------------------------------------------------------------------
-;;;; Custom 4 Character IDs (pool-based, reserve-on-capture, remove-on-finalize)
-;;;; ------------------------------------------------------------------------
-
 (require 'subr-x)
+
+(defgroup mho-ids nil
+  "Pool-based 4-character IDs."
+  :group 'org)
 
 (defcustom mho/id-pool-file
   (expand-file-name "TAGS-tagids.txt" "~/Documents/roam-kb/resources/code/shell/")
@@ -286,53 +283,46 @@ If STYLE is nil, prompt."
   "Regex an ID must match."
   :type 'regexp)
 
-(defun mho/id-pool--normalize (id)
-  "Normalize ID input (trim + upcase)."
+(defun mho/id--normalize (id)
   (upcase (string-trim (or id ""))))
 
-(defun mho/id-pool--read-lines ()
-  "Read all lines from pool file as a list."
+(defun mho/id--valid-p (id)
+  (and (stringp id)
+       (string-match-p mho/id-pool-regex (mho/id--normalize id))))
+
+(defun mho/id--assert-pool-readable ()
   (unless (file-readable-p mho/id-pool-file)
-    (user-error "ID pool file not readable: %s" mho/id-pool-file))
+    (user-error "ID pool file not readable: %s" mho/id-pool-file)))
+
+(defun mho/id-pool--read-lines ()
+  (mho/id--assert-pool-readable)
   (with-temp-buffer
     (insert-file-contents mho/id-pool-file)
     (split-string (buffer-string) "\n" t)))
 
 (defun mho/id-pool-list ()
-  "Return all IDs from the pool file (normalized, valid only)."
+  "Return normalized, valid IDs in the pool."
   (let (out)
     (dolist (line (mho/id-pool--read-lines))
-      (let ((id (mho/id-pool--normalize line)))
-        (when (and (not (string-empty-p id))
-                   (string-match-p mho/id-pool-regex id))
+      (let ((id (mho/id--normalize line)))
+        (when (mho/id--valid-p id)
           (push id out))))
     (nreverse out)))
 
-(defun mho/id-pool--peek ()
-  "Return the first valid ID in the pool without modifying the file."
+(defun mho/id-pool-peek ()
+  "Return first valid ID without modifying pool."
   (let* ((lines (mho/id-pool--read-lines))
-         (id (mho/id-pool--normalize (or (car lines) ""))))
+         (id (mho/id--normalize (or (car lines) ""))))
     (when (string-empty-p id)
       (user-error "ID pool is empty: %s" mho/id-pool-file))
-    (unless (string-match-p mho/id-pool-regex id)
+    (unless (mho/id--valid-p id)
       (user-error "Invalid ID in pool: %S (expected %s)" id mho/id-pool-regex))
-    id))
-
-(defun mho/id-pool-pop ()
-  "Pop the first ID from the pool (remove it from the file) and return it."
-  (let ((id (mho/id-pool--peek)))
-    (with-temp-buffer
-      (insert-file-contents mho/id-pool-file)
-      (goto-char (point-min))
-      (delete-region (line-beginning-position)
-                     (min (point-max) (1+ (line-end-position))))
-      (write-region (point-min) (point-max) mho/id-pool-file nil 'silent))
     id))
 
 (defun mho/id-pool-has-id-p (id)
   "Non-nil if ID exists as a full line in the pool file."
-  (setq id (mho/id-pool--normalize id))
-  (unless (string-match-p mho/id-pool-regex id)
+  (setq id (mho/id--normalize id))
+  (unless (mho/id--valid-p id)
     (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
   (with-temp-buffer
     (insert-file-contents mho/id-pool-file)
@@ -340,9 +330,9 @@ If STYLE is nil, prompt."
     (re-search-forward (concat "^" (regexp-quote id) "$") nil t)))
 
 (defun mho/id-pool-remove-id (id)
-  "Remove ID from the pool file as a full line. Return t if removed."
-  (setq id (mho/id-pool--normalize id))
-  (unless (string-match-p mho/id-pool-regex id)
+  "Remove ID from pool file as a full line. Return t if removed."
+  (setq id (mho/id--normalize id))
+  (unless (mho/id--valid-p id)
     (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
   (let ((removed nil))
     (with-temp-buffer
@@ -356,143 +346,118 @@ If STYLE is nil, prompt."
         (write-region (point-min) (point-max) mho/id-pool-file nil 'silent)))
     removed))
 
-(defun mho/gen-id ()
-  "Preview next ID, confirm, then pop it and copy to kill-ring."
-  (interactive)
-  (let ((next (mho/id-pool--peek)))
-    (when (yes-or-no-p (format "Use and remove ID '%s' from pool and copy it?" next))
-      (let ((id (mho/id-pool-pop)))
-        (kill-new id)
-        (message "Copied ID: %s" id)
-        id))))
+(defun mho/id-pool-pop ()
+  "Pop first ID from pool file (remove first line) and return it."
+  (let ((id (mho/id-pool-peek)))
+    (with-temp-buffer
+      (insert-file-contents mho/id-pool-file)
+      (goto-char (point-min))
+      (delete-region (line-beginning-position)
+                     (min (point-max) (1+ (line-end-position))))
+      (write-region (point-min) (point-max) mho/id-pool-file nil 'silent))
+    id))
 
-;;;; --- Reserve ID for capture (remove from pool only on finalize) -----------
+;;;; ------------------------------------------------------------------------
+;;;; Reservation + Commit model
+;;;; ------------------------------------------------------------------------
 
-(defvar mho/org-id-forced-id nil
-  "If non-nil, the next `org-id-new` call (empty prefix) returns this ID once.")
+;; Buffer-local = capture-safe and avoids stale global state.
+(defvar-local mho/id-reserved nil
+  "Reserved pool ID for this capture/note creation (commit on success).")
 
-(defvar mho/org-id-pending-pool-removal nil
-  "If non-nil, remove this ID from pool after successful org-capture finalize.")
+(defvar mho/id-use-pool nil
+  "When non-nil, `org-id-new` may allocate IDs from the pool (scoped).")
 
-(defun mho/reserve-id-for-next-capture (id)
-  "Reserve ID for the next capture; remove from pool only on finalize.
+(defmacro mho/with-id-pool (&rest body)
+  "Run BODY with pool-based org-id allocation enabled."
+  `(let ((mho/id-use-pool t))
+     ,@body))
 
-Assumes IDs are managed exclusively by `mho/id-pool-file`, so we do NOT
-check `org-id-locations`."
-  (setq id (mho/id-pool--normalize id))
-  (cond
-   ((not (string-match-p mho/id-pool-regex id))
-    (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
-   ((not (mho/id-pool-has-id-p id))
-    (user-error "ID %s is not in the pool file" id))
-   (t
-    (setq mho/org-id-forced-id id
-          mho/org-id-pending-pool-removal id)
-    (message "Reserved ID %s for next capture (removed from pool on finalize)" id)
-    id)))
-(defun mho/vulpea-insert-with-next-id ()
-  "Run `vulpea-insert` but reserve the *next* pool ID for the created file.
-The ID is removed from the pool only after successful capture finalize."
-  (interactive)
-  (require 'vulpea)
-  (mho/reserve-id-for-next-capture (mho/id-pool--peek))
-  (call-interactively #'vulpea-insert))
+(defun mho/id-reserve (&optional id)
+  "Reserve ID (default: next from pool) for the current buffer/session.
+Does NOT remove it from the pool yet."
+  (let ((chosen (mho/id--normalize (or id (mho/id-pool-peek)))))
+    (unless (mho/id--valid-p chosen)
+      (user-error "Invalid ID: %S (expected %s)" chosen mho/id-pool-regex))
+    (unless (mho/id-pool-has-id-p chosen)
+      (user-error "ID %s is not in the pool file" chosen))
+    (setq mho/id-reserved chosen)
+    (message "Reserved ID %s (will remove from pool on success)" chosen)
+    chosen))
 
-(defun mho/vulpea-insert-with-chosen-id (id)
-  "Run `vulpea-insert` but reserve a *chosen* pool ID for the created file.
-The ID is removed from the pool only after successful capture finalize."
-  (interactive
-   (list (completing-read "Vulpea ID: " (mho/id-pool-list) nil t)))
-  (require 'vulpea)
-  (mho/reserve-id-for-next-capture id)
-  (call-interactively #'vulpea-insert))
+(defun mho/id-commit ()
+  "Commit reserved ID by removing it from the pool (if any)."
+  (when (and (stringp mho/id-reserved)
+             (mho/id--valid-p mho/id-reserved))
+    (mho/id-pool-remove-id mho/id-reserved)
+    (message "Committed (removed) ID from pool: %s" mho/id-reserved)
+    (setq mho/id-reserved nil)))
 
-(defun mho/org-id--finalize-pool-removal ()
-  "Remove reserved ID from pool on successful finalize."
-  (when (and (stringp mho/org-id-pending-pool-removal)
-             (not (string-empty-p mho/org-id-pending-pool-removal)))
-    (mho/id-pool-remove-id mho/org-id-pending-pool-removal)
-    (setq mho/org-id-pending-pool-removal nil)))
+(defun mho/id-abort ()
+  "Abort reservation (do not remove from pool)."
+  (setq mho/id-reserved nil))
 
-(defun mho/org-id--abort-clear-pending ()
-  "If capture was aborted, do not remove the reserved ID."
-  (setq mho/org-id-pending-pool-removal nil
-        mho/org-id-forced-id nil))
-
-(with-eval-after-load 'org-capture
-  (add-hook 'org-capture-after-finalize-hook #'mho/org-id--finalize-pool-removal)
-  (add-hook 'org-capture-kill-hook           #'mho/org-id--abort-clear-pending))
-
-;;;; --- Session caching so org-id-new is stable during capture ---------------
-
-(defvar mho/use-short-ids t)
-
-(defvar mho/org-id-new--session-active nil
-  "Non-nil while a capture session is allocating IDs.")
-
-(defvar mho/org-id-new--session-cache nil
-  "Alist cache (PREFIX . ID) for the current session.")
-
-(defun mho/org-id-new--session-begin ()
-  (setq mho/org-id-new--session-active t
-        mho/org-id-new--session-cache nil))
-
-(defun mho/org-id-new--session-end ()
-  (setq mho/org-id-new--session-active nil
-        mho/org-id-new--session-cache nil))
-
-(defun mho/org-id-new--session-begin-maybe (&rest _)
-  "Begin an org-id allocation session if using short IDs."
-  (when mho/use-short-ids
-    (mho/org-id-new--session-begin)))
-
-(with-eval-after-load 'org-capture
-  (advice-add 'org-capture :before #'mho/org-id-new--session-begin-maybe)
-  (add-hook 'org-capture-after-finalize-hook #'mho/org-id-new--session-end)
-  (add-hook 'org-capture-kill-hook           #'mho/org-id-new--session-end))
-
-(defun mho/org-id-new-around (orig-fn &optional prefix)
-  "Use pool IDs when enabled. During a session, reuse the same ID for PREFIX."
-  (if (not mho/use-short-ids)
-      (funcall orig-fn prefix)
-    (let* ((pfx (or prefix "")))
-      (if mho/org-id-new--session-active
-          (or
-           ;; forced ID (once, only for empty prefix)
-           (when (and (string-empty-p pfx)
-                      mho/org-id-forced-id
-                      (not (assoc pfx mho/org-id-new--session-cache)))
-             (let ((id mho/org-id-forced-id))
-               (setq mho/org-id-forced-id nil)
-               (push (cons pfx id) mho/org-id-new--session-cache)
-               id))
-           ;; cached
-           (cdr (assoc pfx mho/org-id-new--session-cache))
-           ;; new from pool
-           (let ((id (mho/id-pool-pop)))
-             (when (and prefix (not (string-empty-p prefix)))
-               (setq id (concat prefix id)))
-             (push (cons pfx id) mho/org-id-new--session-cache)
-             id))
-        ;; not in session: pop
-        (let ((id (mho/id-pool-pop)))
-          (if (and prefix (not (string-empty-p prefix)))
-              (concat prefix id)
-            id))))))
+;;;; ------------------------------------------------------------------------
+;;;; org-id-new integration (uses reserved ID first, then pool if scoped)
+;;;; ------------------------------------------------------------------------
 
 (with-eval-after-load 'org-id
-  (setq org-id-method 'org)
+  (setq org-id-method 'org))
+
+(defun mho/org-id-new-around (orig-fn &optional prefix)
+  "org-id-new advice:
+- If a reservation exists and PREFIX is empty: use it (do not commit here).
+- Else if pool mode is enabled: pop a new pool ID.
+- Else fall back to ORIG-FN."
+  (let ((pfx (or prefix "")))
+    (cond
+     ;; Reserved ID has top priority (only for empty prefix).
+     ((and (string-empty-p pfx) (stringp mho/id-reserved) (mho/id--valid-p mho/id-reserved))
+      mho/id-reserved)
+
+     ;; Pool mode: allocate from pool.
+     ((and mho/id-use-pool)
+      (let ((id (mho/id-pool-pop)))
+        (if (and prefix (not (string-empty-p pfx)))
+            (concat prefix id)
+          id)))
+
+     ;; Default behavior.
+     (t
+      (funcall orig-fn prefix)))))
+
+(with-eval-after-load 'org-id
   (advice-remove 'org-id-new #'mho/org-id-new-around)
   (advice-add 'org-id-new :around #'mho/org-id-new-around))
 
-;;;; --- org-roam helper: stable ID for filename + :ID: -----------------------
+;;;; ------------------------------------------------------------------------
+;;;; org-capture: commit on finalize, abort on kill
+;;;; ------------------------------------------------------------------------
 
-(defvar mho/org-roam-capture-id nil
-  "ID cached for the current org-roam capture.")
+(with-eval-after-load 'org-capture
+  ;; Make pool mode active during org-capture (but nowhere else).
+  (advice-add
+   'org-capture :around
+   (lambda (orig &rest args)
+     (mho/with-id-pool
+      (apply orig args))))
+
+  ;; Commit only if capture finishes successfully.
+  (add-hook 'org-capture-after-finalize-hook #'mho/id-commit)
+
+  ;; If capture is killed/aborted, do not remove.
+  (add-hook 'org-capture-kill-hook #'mho/id-abort))
+
+;;;; ------------------------------------------------------------------------
+;;;; org-roam helper: stable ID for filename + :ID:
+;;;; (uses org-id-new, which now respects reservation/pool scoping)
+;;;; ------------------------------------------------------------------------
+
+(defvar-local mho/org-roam-capture-id nil
+  "Cached ID for org-roam capture buffer.")
 
 (defun mho/org-roam-id ()
-  "Return cached org-roam capture ID, generating it once if needed.
-Uses org-id-new so it respects reserve/session logic."
+  "Return cached capture ID, generating it once if needed."
   (or mho/org-roam-capture-id
       (setq mho/org-roam-capture-id (org-id-new ""))))
 
@@ -500,41 +465,80 @@ Uses org-id-new so it respects reserve/session logic."
   (add-hook 'org-capture-after-finalize-hook (lambda () (setq mho/org-roam-capture-id nil)))
   (add-hook 'org-capture-kill-hook           (lambda () (setq mho/org-roam-capture-id nil))))
 
-;;;; --- Manual commands ------------------------------------------------------
+;;;; ------------------------------------------------------------------------
+;;;; Vulpea convenience commands
+;;;; ------------------------------------------------------------------------
 
-(defun mho/org-roam-capture-with-chosen-id (id)
-  "Reserve chosen ID from pool, then run org-roam capture."
+(defun mho/vulpea-insert-with-next-id ()
+  "Reserve next pool ID and run `vulpea-insert` in pool mode."
+  (interactive)
+  (require 'vulpea)
+  (mho/id-reserve (mho/id-pool-peek))
+  (mho/with-id-pool
+   (call-interactively #'vulpea-insert)))
+
+(defun mho/vulpea-insert-with-chosen-id (id)
+  "Reserve chosen pool ID and run `vulpea-insert` in pool mode."
   (interactive
-   (list (completing-read "Org-roam ID: " (mho/id-pool-list) nil t)))
-  (mho/reserve-id-for-next-capture id)
-  (call-interactively #'org-roam-capture))
+   (list (completing-read "Vulpea ID: " (mho/id-pool-list) nil t)))
+  (require 'vulpea)
+  (mho/id-reserve id)
+  (mho/with-id-pool
+   (call-interactively #'vulpea-insert)))
 
-(defun mho/org-capture-with-chosen-id (id)
-  "Reserve chosen ID from pool, then run org-capture."
-  (interactive
-   (list (completing-read "Capture ID: " (mho/id-pool-list) nil t)))
-  (mho/reserve-id-for-next-capture id)
-  (call-interactively #'org-capture))
+;;;; ------------------------------------------------------------------------
+;;;; Vulpea safety net: if vulpea creates a note outside org-capture finalize,
+;;;; commit when we can confirm creation succeeded (defensive, args-safe).
+;;;; ------------------------------------------------------------------------
 
-;; Remove a specific ID from the pool (prompt → validate → confirm → remove)
+(defun mho/vulpea-create-around (orig-fn &rest args)
+  "Commit reserved ID after successful `vulpea-create` when we can prove it."
+  (let ((pending mho/id-reserved)
+        (note (apply orig-fn args)))
+    (when (and (stringp pending)
+               (mho/id--valid-p pending)
+               note
+               (fboundp 'vulpea-note-id)
+               (fboundp 'vulpea-note-path)
+               (string= (mho/id--normalize pending)
+                        (mho/id--normalize (or (vulpea-note-id note) "")))
+               (file-exists-p (vulpea-note-path note)))
+      ;; Only commit if vulpea actually created the note with our ID.
+      (mho/id-commit))
+    note))
+
+(with-eval-after-load 'vulpea
+  (advice-remove 'vulpea-create #'mho/vulpea-create-around)
+  (advice-add 'vulpea-create :around #'mho/vulpea-create-around))
+
+;;;; ------------------------------------------------------------------------
+;;;; Manual helpers
+;;;; ------------------------------------------------------------------------
+
+(defun mho/gen-id ()
+  "Preview next ID, confirm, then pop it and copy to kill-ring."
+  (interactive)
+  (let ((next (mho/id-pool-peek)))
+    (when (yes-or-no-p (format "Use and remove ID '%s' from pool and copy it?" next))
+      (let ((id (mho/id-pool-pop)))
+        (kill-new id)
+        (message "Copied ID: %s" id)
+        id))))
 
 (defun mho/id-pool-remove-id-prompt (id)
-  "Prompt for an ID, verify it exists in the pool, confirm, then remove it."
+  "Prompt for an ID, confirm, then remove it from the pool."
   (interactive
    (list
-    (mho/id-pool--normalize
+    (mho/id--normalize
      (completing-read
       "Remove ID from pool: "
-      (mho/id-pool-list)   ;; completion candidates
-      nil                  ;; allow non-matching input (we still validate)
-      nil                  ;; not require-match
-      nil nil              ;; no initial input/history
-      (ignore-errors (mho/id-pool--peek)))))) ;; default to top-of-pool if available
-  (setq id (mho/id-pool--normalize id))
+      (mho/id-pool-list)
+      nil nil nil nil
+      (ignore-errors (mho/id-pool-peek))))))
+  (setq id (mho/id--normalize id))
   (cond
-   ((or (null id) (string-empty-p id))
-    (user-error "No ID provided"))
-   ((not (string-match-p mho/id-pool-regex id))
+   ((string-empty-p id) (user-error "No ID provided"))
+   ((not (mho/id--valid-p id))
     (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
    ((not (mho/id-pool-has-id-p id))
     (user-error "ID %s is not in the pool file" id))
@@ -542,10 +546,11 @@ Uses org-id-new so it respects reserve/session logic."
     (mho/id-pool-remove-id id)
     (message "Removed ID from pool: %s" id))))
 
-;; Bind to SPC r (Doom leader)
-(map! :leader
-      :desc "Remove ID from pool"
-      "r" #'mho/id-pool-remove-id-prompt)
+;;;; Optional Doom keybind
+
+;;;; ------------------------------------------------------------------------
+;;;; Heading IDs (explicit pool pop + register)
+;;;; ------------------------------------------------------------------------
 
 (defun mho/vulpea-get-create-heading-from-pool ()
   "Assign a fresh pool ID to the current heading and register it."
@@ -555,39 +560,8 @@ Uses org-id-new so it respects reserve/session logic."
     (org-entry-put (point) "ID" id)
     (when-let ((f (buffer-file-name)))
       (org-id-add-location id f))
+    (message "Heading ID set: %s" id)
     id))
-;;;; ------------------------------------------------------------------------
-;;;; Vulpea: remove reserved ID after successful note creation
-;;;; ------------------------------------------------------------------------
-
-(defun mho/vulpea--remove-pending-id-after-create (orig-fn title &rest plist)
-  "Around-advice for `vulpea-create`.
-If `mho/org-id-pending-pool-removal` is set and a note is created successfully,
-remove that ID from the pool."
-  (let* ((pending mho/org-id-pending-pool-removal)
-         (note (apply orig-fn title plist)))
-    ;; Only remove if:
-    ;;  - we had a pending reserved ID
-    ;;  - a note object was returned
-    ;;  - the note has an ID equal to our pending one
-    ;;  - its file exists on disk
-    (when (and (stringp pending)
-               (not (string-empty-p pending))
-               note
-               (fboundp 'vulpea-note-id)
-               (fboundp 'vulpea-note-path)
-               (string= (mho/id-pool--normalize pending)
-                        (mho/id-pool--normalize (or (vulpea-note-id note) "")))
-               (file-exists-p (vulpea-note-path note)))
-      (mho/id-pool-remove-id pending)
-      (setq mho/org-id-pending-pool-removal nil
-            mho/org-id-forced-id nil)
-      (message "Removed reserved ID from pool: %s" pending))
-    note))
-
-(with-eval-after-load 'vulpea
-  (advice-remove 'vulpea-create #'mho/vulpea--remove-pending-id-after-create)
-  (advice-add 'vulpea-create :around #'mho/vulpea--remove-pending-id-after-create))
 
 (defun mho/org--slugify-underscore (s)
   "Convert S to a lowercase underscore_slug for filenames."
