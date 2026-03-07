@@ -140,7 +140,7 @@ Example: \\date{2025-07-25T09:10:46+02:00}"
 (defun mho/forester--create-weeknote-file ()
   "Create a weeknotes .tree file named YYYY-Www.tree without using a generated ID."
   (interactive)
-  (let* ((target-dir "~/GitHub/mho-forest/trees/weeknotes/")
+  (let* ((target-dir "~/Documents/roam-kb/mho-forest/trees/weeknotes/")
          (current-time (current-time))
          (week-id (format-time-string "%Y-W%V" current-time))
          (filename (expand-file-name (concat week-id ".tree") target-dir))
@@ -161,7 +161,7 @@ Example: \\date{2025-07-25T09:10:46+02:00}"
 (defun mho/forester--create-tree-file ()
   "Create a new .tree file using a pool-generated ID and a user-provided title."
   (interactive)
-  (let* ((target-dir "~/GitHub/mho-forest/trees/")
+  (let* ((target-dir "~/Documents/roam-kb/mho-forest/trees/")
          (full-id (mho/id-pool-pop))
          (title (read-string "Enter title: "))
          (filename (expand-file-name (concat full-id ".tree") target-dir))
