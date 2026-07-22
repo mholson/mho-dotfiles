@@ -30,6 +30,7 @@
   "C-c h W" #'heurigraph-new-weeknote
   "C-c h D" #'heurigraph-new-diagram
   "C-c h i" #'heurigraph-insert-diagram
+  "C-c h A" #'heurigraph-add-subjects
   "C-c h V" #'heurigraph-toggle-public
   "C-c h f" #'heurigraph-find-node
   "C-c h l" #'heurigraph-insert-link
@@ -91,6 +92,7 @@
   "W" #'heurigraph-new-weeknote
   "D" #'heurigraph-new-diagram
   "i" #'heurigraph-insert-diagram
+  "A" #'heurigraph-add-subjects
   "V" #'heurigraph-toggle-public
   "f" #'heurigraph-find-node
   "l" #'heurigraph-insert-link

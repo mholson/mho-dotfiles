@@ -572,6 +572,185 @@ comments are skipped."
              (call-end (heurigraph--typst-call-end (1- open-end))))
         (when call-end (cons open-end call-end))))))
 
+(defun heurigraph--knowledge-node-call ()
+  "Return (OPEN-END . CALL-END) for the first knowledge-node call, or nil."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "#knowledge-node(" nil t)
+      (let* ((open-end (point))
+             (call-end (heurigraph--typst-call-end (1- open-end))))
+        (when call-end (cons open-end call-end))))))
+
+(defun heurigraph--metadata-field-value-start (bounds field)
+  "Return the value start for top-level FIELD within metadata BOUNDS.
+Strings, content blocks, line comments, nested block comments, and nested
+parenthesized values are skipped while looking for the field name."
+  (save-excursion
+    (goto-char (car bounds))
+    (let ((depth 1)
+          (content-depth 0)
+          (state 'code)
+          (block-depth 0)
+          (field-rx (concat "\\_<" (regexp-quote field)
+                            "\\_>[[:space:]]*:")))
+      (catch 'found
+        (while (< (point) (1- (cdr bounds)))
+          (let ((char (char-after))
+                (next (char-after (1+ (point)))))
+            (pcase state
+              ('string
+               (cond
+                ((eq char ?\\) (forward-char (min 2 (- (point-max) (point)))))
+                ((eq char ?\") (setq state 'code) (forward-char 1))
+                (t (forward-char 1))))
+              ('line-comment
+               (when (eq char ?\n) (setq state 'code))
+               (forward-char 1))
+              ('block-comment
+               (cond
+                ((and (eq char ?/) (eq next ?*))
+                 (setq block-depth (1+ block-depth))
+                 (forward-char 2))
+                ((and (eq char ?*) (eq next ?/))
+                 (setq block-depth (1- block-depth))
+                 (forward-char 2)
+                 (when (zerop block-depth) (setq state 'code)))
+                (t (forward-char 1))))
+              ('code
+               (cond
+                ((and (= depth 1) (zerop content-depth)
+                      (looking-at field-rx))
+                 (goto-char (match-end 0))
+                 (skip-chars-forward " \t\r\n" (cdr bounds))
+                 (throw 'found (point)))
+                ((and (eq char ?/) (eq next ?/))
+                 (setq state 'line-comment)
+                 (forward-char 2))
+                ((and (eq char ?/) (eq next ?*))
+                 (setq state 'block-comment block-depth 1)
+                 (forward-char 2))
+                ((eq char ?\") (setq state 'string) (forward-char 1))
+                ((and (> content-depth 0) (eq char ?\\))
+                 (forward-char (min 2 (- (point-max) (point)))))
+                ((eq char ?\[)
+                 (setq content-depth (1+ content-depth))
+                 (forward-char 1))
+                ((and (eq char ?\]) (> content-depth 0))
+                 (setq content-depth (1- content-depth))
+                 (forward-char 1))
+                ((and (zerop content-depth) (eq char ?\())
+                 (setq depth (1+ depth))
+                 (forward-char 1))
+                ((and (zerop content-depth) (eq char ?\)))
+                 (setq depth (1- depth))
+                 (forward-char 1))
+                (t (forward-char 1)))))))
+        nil))))
+
+(defun heurigraph--subject-metadata ()
+  "Return a plist describing the current tree's subject metadata.
+The plist contains `:call', `:tuple', and `:ids'.  `:tuple' is nil when the
+knowledge-node has no subjects field yet."
+  (let ((call (heurigraph--knowledge-node-call)))
+    (unless call
+      (user-error "No #knowledge-node declaration found"))
+    (let ((start (heurigraph--metadata-field-value-start call "subjects")))
+      (if (null start)
+          (list :call call :tuple nil :ids nil)
+        (unless (eq (char-after start) ?\()
+          (user-error "The knowledge-node subjects field is not a tuple"))
+        (let ((end (heurigraph--typst-call-end start)))
+          (unless (and end (<= end (cdr call)))
+            (user-error "The knowledge-node subjects tuple is incomplete"))
+          (let (ids)
+            (save-excursion
+              (goto-char (1+ start))
+              (while (re-search-forward "\"\\([^\"\n]+\\)\"" (1- end) t)
+                (push (match-string-no-properties 1) ids)))
+            (list :call call :tuple (cons start end) :ids (nreverse ids))))))))
+
+(defun heurigraph--read-additional-subjects ()
+  "Read one or more subjects not already present in the current tree."
+  (let* ((existing (plist-get (heurigraph--subject-metadata) :ids))
+         (candidates
+          (seq-remove
+           (lambda (candidate)
+             (member (alist-get 'id (cdr candidate)) existing))
+           (heurigraph--ontology-candidates 'subjects heurigraph-subjects))))
+    (unless candidates
+      (user-error "This tree already has every registered subject"))
+    (let ((choices
+           (completing-read-multiple
+            "Add subjects (comma-separated): " candidates nil t)))
+      (delete-dups
+       (mapcar (lambda (choice) (alist-get 'id (cdr (assoc choice candidates))))
+               choices)))))
+
+(defun heurigraph--insert-subject-tuple-items (tuple subjects)
+  "Append SUBJECTS to the Typst subject TUPLE while preserving its layout."
+  (let* ((open (car tuple))
+         (close (1- (cdr tuple)))
+         (multiline (save-excursion
+                      (goto-char (1+ open))
+                      (search-forward "\n" close t))))
+    (if (not multiline)
+        (save-excursion
+          (goto-char close)
+          (skip-chars-backward " \t" (1+ open))
+          (let ((prefix
+                 (cond
+                  ((= (point) (1+ open)) "")
+                  ((eq (char-before) ?,) " ")
+                  (t ", "))))
+            (insert prefix
+                    (mapconcat (lambda (id) (format "\"%s\"," id))
+                               subjects " "))))
+      (save-excursion
+        (goto-char close)
+        (let* ((line-start (line-beginning-position))
+               (close-prefix (buffer-substring-no-properties line-start close)))
+          (if (string-match-p "\\`[ \t]*\\'" close-prefix)
+              (let ((indent (concat close-prefix "  ")))
+                (goto-char line-start)
+                (dolist (id subjects)
+                  (insert indent "\"" id "\",\n")))
+            ;; Preserve non-canonical multiline tuples and their comments.
+            (goto-char close)
+            (skip-chars-backward " \t" (1+ open))
+            (insert (if (eq (char-before) ?,) " " ", ")
+                    (mapconcat (lambda (id) (format "\"%s\"," id))
+                               subjects " "))))))))
+
+;;;###autoload
+(defun heurigraph-add-subjects (subjects)
+  "Add ontology SUBJECTS to the current tree's knowledge-node metadata.
+Interactively, completion shows the project registry's subject labels,
+identifiers, and descriptions and accepts several comma-separated choices.
+Existing subjects are excluded from completion and never duplicated."
+  (interactive (list (heurigraph--read-additional-subjects)))
+  (barf-if-buffer-read-only)
+  (let* ((metadata (heurigraph--subject-metadata))
+         (existing (plist-get metadata :ids))
+         (subjects (seq-uniq (seq-remove (lambda (id) (member id existing))
+                                        subjects)
+                             #'equal)))
+    (unless subjects
+      (user-error "No new subjects selected"))
+    (save-excursion
+      (if-let ((tuple (plist-get metadata :tuple)))
+          (heurigraph--insert-subject-tuple-items tuple subjects)
+        (let* ((open-end (car (plist-get metadata :call)))
+               (multiline (eq (char-after open-end) ?\n)))
+          (goto-char open-end)
+          (insert (if multiline "\n  subjects: (" "subjects: (")
+                  (mapconcat (lambda (id) (format "\"%s\"," id))
+                             subjects " ")
+                  (if multiline ")," "), ")))))
+    (message "Heurigraph added %s" (string-join subjects ", "))))
+
+;;;###autoload
+(defalias 'heurigraph-add-subject #'heurigraph-add-subjects)
+
 (defun heurigraph--metadata-public-value ()
   "Return the current buffer's explicit publication value, or nil."
   (when-let ((bounds (heurigraph--metadata-call)))
