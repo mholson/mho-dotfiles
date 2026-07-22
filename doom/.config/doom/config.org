@@ -289,6 +289,25 @@ Make capture discoverable (Swedish key):
        :desc "Subtree Insert" "s" #'mho/insert-subtree
        :desc "Weeknote"       "w" #'mho/forester--create-weeknote-file))
 #+end_src
+** Heurigraph
+#+begin_src emacs-lisp
+(use-package! heurigraph
+  :load-path "~/.config/doom/src/heurigraph"
+  :config
+  (setq heurigraph-executable "heurigraph"
+        heurigraph-notes-directory "~/GitHub/KogMath"))
+
+(use-package! heurigraph-mode
+  :after heurigraph
+  :load-path "~/.config/doom/src/heurigraph"
+  :hook ((typst-ts-mode . heurigraph-enable-for-typst)
+         (toml-ts-mode . heurigraph-enable-for-collection)
+         (toml-ts-mode . heurigraph-enable-for-ontology)
+         (toml-mode . heurigraph-enable-for-collection)
+         (toml-mode . heurigraph-enable-for-ontology))
+  :config
+  (heurigraph-doom-setup-keybindings))
+#+end_src
 
 * 6 Custom Library
 ** Forester
