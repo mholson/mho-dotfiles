@@ -22,9 +22,9 @@
 
 (setq evil-want-fine-undo t)
 
-(setq org-directory
-      (expand-file-name
-       "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/"))
+;; (setq org-directory
+;;       (expand-file-name
+;;        "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/"))
 
 (setq display-line-numbers-type 'relative)
 
@@ -38,18 +38,18 @@
 (add-to-list 'default-frame-alist '(height . 34))
 (add-to-list 'default-frame-alist '(width  . 80))
 
-(setq doom-font (font-spec :family "SF Mono" :size 21))
+(setq doom-font (font-spec :family "Iosevka Nerd Font Mono" :size 18))
 
 (setq truncate-string-ellipsis "…")
 
-;; (setq doom-variable-pitch-font (font-spec :family "Source Code Pro" :size 13))
+(setq doom-variable-pitch-font (font-spec :family "Iosevka Nerd Font Mono" :size 16))
 
-(setq doom-big-font (font-spec :family "SF Mono" :size 42))
+;;(setq doom-font (font-spec :family "Iosevka Nerd Font Mono" :size 12 :weight 'regular))
 
-(set-fontset-font t nil "SF Pro Display" nil 'append)
-(load! "lisp/sf.el")
+;;(set-fontset-font t nil "SF Pro Display" nil 'append)
+;;(load! "src/sf.el")
 
-(setq doom-theme 'doom-nord-aurora)
+(setq doom-theme 'arctic-archive-dark)
 
 (after! time
   (setq display-time-format "%H:%M  Wk%V"
@@ -127,6 +127,23 @@
        :desc "Tree Insert"    "n" #'mho/forester--create-tree-file
        :desc "Subtree Insert" "s" #'mho/insert-subtree
        :desc "Weeknote"       "w" #'mho/forester--create-weeknote-file))
+
+(use-package! heurigraph
+  :load-path "~/.config/doom/src/heurigraph"
+  :config
+  (setq heurigraph-executable "heurigraph"
+        heurigraph-notes-directory "~/GitHub/KogMath"))
+
+(use-package! heurigraph-mode
+  :after heurigraph
+  :load-path "~/.config/doom/src/heurigraph"
+  :hook ((typst-ts-mode . heurigraph-enable-for-typst)
+         (toml-ts-mode . heurigraph-enable-for-collection)
+         (toml-ts-mode . heurigraph-enable-for-ontology)
+         (toml-mode . heurigraph-enable-for-collection)
+         (toml-mode . heurigraph-enable-for-ontology))
+  :config
+  (heurigraph-doom-setup-keybindings))
 
 (defun mho/forester--date ()
   "Insert current date in Typst \\date{...} format at point.
@@ -870,10 +887,10 @@ Works in Dired (file at point) or Org buffers."
 (use-package! vulpea
   :after org
   :config
-  (setq vulpea-directory (expand-file-name "~/Documents/roam-kb/")
-        vulpea-db-sync-directories '("~/Documents/roam-kb/")
-        vulpea-default-notes-directory "~/Documents/roam-kb/"
-        vulpea-buffer-alias-property "ROAM_ALIASES")
+  ;; (setq vulpea-directory (expand-file-name "~/Documents/roam-kb/")
+  ;;       vulpea-db-sync-directories '("~/Documents/roam-kb/")
+  ;;       vulpea-default-notes-directory "~/Documents/roam-kb/"
+  ;;       vulpea-buffer-alias-property "ROAM_ALIASES")
 
   ;; Default file template (IDs are handled by your pool-based org-id-new system)
 (setq vulpea-create-default-template

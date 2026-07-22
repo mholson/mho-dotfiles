@@ -69,9 +69,9 @@ Raising the undo limit to 80 MB.
 *** Org-Mode Directory
 Set this early.
 #+begin_src emacs-lisp
-(setq org-directory
-      (expand-file-name
-       "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/"))
+;; (setq org-directory
+;;       (expand-file-name
+;;        "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/"))
 #+end_src
 
 ** Line Numbers
@@ -117,9 +117,9 @@ If you or Emacs can't find your font:
 Doom exposes five variables for controlling fonts.
 
 *** Doom Primary Font
-I rather like SF Mono.
+I rather like Iosevka.
 #+begin_src emacs-lisp
-(setq doom-font (font-spec :family "SF Mono" :size 21))
+(setq doom-font (font-spec :family "Iosevka Nerd Font Mono" :size 18))
 #+end_src
 
 Make the ellipsis pretty:
@@ -129,13 +129,13 @@ Make the ellipsis pretty:
 
 *** Doom Variable Pitch Font
 #+begin_src emacs-lisp
-;; (setq doom-variable-pitch-font (font-spec :family "Source Code Pro" :size 13))
+(setq doom-variable-pitch-font (font-spec :family "Iosevka Nerd Font Mono" :size 16))
 #+end_src
 
 *** Doom Big Font
 Double size for the big font.
 #+begin_src emacs-lisp
-(setq doom-big-font (font-spec :family "SF Mono" :size 42))
+;;(setq doom-font (font-spec :family "Iosevka Nerd Font Mono" :size 12 :weight 'regular))
 #+end_src
 
 *** Doom Symbol Font
@@ -144,17 +144,17 @@ SF Symbols support:
 - sf.el:    https://github.com/xenodium/dotsies/blob/main/emacs/ar/sf.el
 
 #+begin_src emacs-lisp
-(set-fontset-font t nil "SF Pro Display" nil 'append)
-(load! "lisp/sf.el")
+;;(set-fontset-font t nil "SF Pro Display" nil 'append)
+;;(load! "src/sf.el")
 #+end_src
 
 *** Doom Serif Font
 (Optional)
 
 ** Themes
-I really like working in dark-mode using doom-nord-aurora.
+I really like working in dark-mode using Arctic Archive Dark.
 #+begin_src emacs-lisp
-(setq doom-theme 'doom-nord-aurora)
+(setq doom-theme 'arctic-archive-dark)
 #+end_src
 
 ** Modeline
@@ -1154,10 +1154,10 @@ https://github.com/nobiot/org-transclusion
 (use-package! vulpea
   :after org
   :config
-  (setq vulpea-directory (expand-file-name "~/Documents/roam-kb/")
-        vulpea-db-sync-directories '("~/Documents/roam-kb/")
-        vulpea-default-notes-directory "~/Documents/roam-kb/"
-        vulpea-buffer-alias-property "ROAM_ALIASES")
+  ;; (setq vulpea-directory (expand-file-name "~/Documents/roam-kb/")
+  ;;       vulpea-db-sync-directories '("~/Documents/roam-kb/")
+  ;;       vulpea-default-notes-directory "~/Documents/roam-kb/"
+  ;;       vulpea-buffer-alias-property "ROAM_ALIASES")
 
   ;; Default file template (IDs are handled by your pool-based org-id-new system)
 (setq vulpea-create-default-template
