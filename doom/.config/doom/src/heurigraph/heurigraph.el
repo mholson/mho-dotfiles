@@ -1,7 +1,7 @@
 ;;; heurigraph.el --- Authoring layer for Heurigraph  -*- lexical-binding: t; -*-
 
 ;; Author: Heurigraph
-;; Version: 1.16.2
+;; Version: 1.16.3
 ;; Keywords: tools, tex, outlines
 ;; Package-Requires: ((emacs "30.2"))
 
@@ -563,6 +563,66 @@ comments are skipped."
               (t (forward-char 1)))))))
       result)))
 
+(defun heurigraph--typst-string-literals (start end)
+  "Return the non-empty Typst string literals in code between START and END.
+Quotes inside line comments, nested block comments, and content blocks are
+ignored, mirroring `heurigraph--typst-call-end', so a quoted token in a
+comment is never mistaken for a real value."
+  (save-excursion
+    (goto-char start)
+    (let ((state 'code)
+          (block-depth 0)
+          (content-depth 0)
+          (literal-start nil)
+          literals)
+      (while (< (point) end)
+        (let ((char (char-after))
+              (next (char-after (1+ (point)))))
+          (pcase state
+            ('string
+             (cond
+              ((eq char ?\\) (forward-char (min 2 (- end (point)))))
+              ((eq char ?\")
+               (when (> (point) literal-start)
+                 (push (buffer-substring-no-properties literal-start (point)) literals))
+               (setq state 'code literal-start nil)
+               (forward-char 1))
+              (t (forward-char 1))))
+            ('line-comment
+             (when (eq char ?\n) (setq state 'code))
+             (forward-char 1))
+            ('block-comment
+             (cond
+              ((and (eq char ?/) (eq next ?*))
+               (setq block-depth (1+ block-depth))
+               (forward-char 2))
+              ((and (eq char ?*) (eq next ?/))
+               (setq block-depth (1- block-depth))
+               (forward-char 2)
+               (when (zerop block-depth) (setq state 'code)))
+              (t (forward-char 1))))
+            ('code
+             (cond
+              ((and (eq char ?/) (eq next ?/))
+               (setq state 'line-comment)
+               (forward-char 2))
+              ((and (eq char ?/) (eq next ?*))
+               (setq state 'block-comment block-depth 1)
+               (forward-char 2))
+              ((and (zerop content-depth) (eq char ?\"))
+               (setq state 'string literal-start (1+ (point)))
+               (forward-char 1))
+              ((and (> content-depth 0) (eq char ?\\))
+               (forward-char (min 2 (- end (point)))))
+              ((eq char ?\[)
+               (setq content-depth (1+ content-depth))
+               (forward-char 1))
+              ((and (eq char ?\]) (> content-depth 0))
+               (setq content-depth (1- content-depth))
+               (forward-char 1))
+              (t (forward-char 1)))))))
+      (nreverse literals))))
+
 (defun heurigraph--metadata-call ()
   "Return (OPEN-END . CALL-END) for the first metadata call, or nil."
   (save-excursion
@@ -662,12 +722,9 @@ knowledge-node has no subjects field yet."
         (let ((end (heurigraph--typst-call-end start)))
           (unless (and end (<= end (cdr call)))
             (user-error "The knowledge-node subjects tuple is incomplete"))
-          (let (ids)
-            (save-excursion
-              (goto-char (1+ start))
-              (while (re-search-forward "\"\\([^\"\n]+\\)\"" (1- end) t)
-                (push (match-string-no-properties 1) ids)))
-            (list :call call :tuple (cons start end) :ids (nreverse ids))))))))
+          (list :call call
+                :tuple (cons start end)
+                :ids (heurigraph--typst-string-literals (1+ start) (1- end))))))))
 
 (defun heurigraph--read-additional-subjects ()
   "Read one or more subjects not already present in the current tree."
@@ -747,9 +804,6 @@ Existing subjects are excluded from completion and never duplicated."
                              subjects " ")
                   (if multiline ")," "), ")))))
     (message "Heurigraph added %s" (string-join subjects ", "))))
-
-;;;###autoload
-(defalias 'heurigraph-add-subject #'heurigraph-add-subjects)
 
 (defun heurigraph--metadata-public-value ()
   "Return the current buffer's explicit publication value, or nil."
@@ -832,13 +886,12 @@ created file if it can be located."
         (when hit (find-file hit))))))
 
 ;;;###autoload
-(defun heurigraph-next-id (&optional prefix)
+(defun heurigraph-next-id ()
   "Show the next free tree id without creating anything.
-Use `[ids].default_prefix' unless optional PREFIX is supplied."
+The namespace comes from `[ids].default_prefix'."
   (interactive)
   (pcase-let ((`(,code . ,output)
-               (heurigraph--call-output
-                (append '("next-id") (when prefix (list prefix))))))
+               (heurigraph--call-output '("next-id"))))
     (unless (zerop code)
       (user-error "heurigraph next-id failed: %s" (string-trim output)))
     (message "Next id: %s" (string-trim output))))
@@ -1477,7 +1530,7 @@ completion narrows over the displayed title-rich candidate."
    t t))
 
 ;;;###autoload
-(defun heurigraph-insert-link-to (node text)
+(defun heurigraph-insert-link (node text)
   "Insert a #link-to mention at point, selecting NODE by title.
 Unlike typed semantic relations, #link-to is an inline navigational mention;
 it may target either an id-bearing tree or a non-mathematical page.
@@ -1493,9 +1546,6 @@ stable id."
     (message "Inserted link to %s (%s)" target (alist-get 'title node))))
 
 ;;;###autoload
-(defalias 'heurigraph-insert-link #'heurigraph-insert-link-to)
-
-;;;###autoload
 (defun heurigraph-insert-transclusion (node)
   "Insert #transclude for a tree selected by title.
 Pages are excluded because transclusion must expand an id-bearing tree."
@@ -1504,9 +1554,6 @@ Pages are excluded because transclusion must expand an id-bearing tree."
     (unless (bolp) (insert "\n"))
     (insert (format "#transclude(\"%s\")" target))
     (message "Inserted transclusion of %s (%s)" target (alist-get 'title node))))
-
-;;;###autoload
-(defalias 'heurigraph-include #'heurigraph-insert-transclusion)
 
 (defun heurigraph--ontology-item-by-id (kind id)
   "Return the ontology KIND entry identified by ID, or nil."
@@ -1677,7 +1724,14 @@ manually.  The resulting stable id and default title are `YYYY-WXX`."
                 (title (heurigraph--diagram-title file name)))
            (cons (format "%s  [%s]" title name)
                  (list :name name :title title :path file))))
-       (sort (directory-files-recursively dir "\\.typ\\'") #'string<)))))
+       (sort
+        (seq-filter
+         (lambda (file)
+           (string-match-p
+            "\\`cetz-[0-9A-Z]\\{4\\}\\.typ\\'"
+            (file-name-nondirectory file)))
+         (directory-files-recursively dir "\\.typ\\'"))
+        #'string<)))))
 
 (defun heurigraph--read-diagram ()
   "Select a project diagram and return its metadata plist."
@@ -1688,7 +1742,7 @@ manually.  The resulting stable id and default title are `YYYY-WXX`."
 
 ;;;###autoload
 (defun heurigraph-new-diagram (title)
-  "Create and visit the next `dia-XXXX' CeTZ diagram from the template."
+  "Create and visit the next `cetz-XXXX' CeTZ diagram from the template."
   (interactive (list (read-string "Diagram title: ")))
   (when (string-empty-p (string-trim title))
     (user-error "Diagram title must not be empty"))
@@ -1727,8 +1781,104 @@ description, WIDTH is a Typst length, and an empty CAPTION omits the caption."
   (insert ")")
   (message "Inserted diagram %s" name))
 
+(defun heurigraph--image-assets ()
+  "Return managed project images reported by the CLI."
+  (let* ((result (heurigraph--call-output '("image" "list" "--json")))
+         (code (car result))
+         (output (cdr result)))
+    (unless (zerop code)
+      (user-error "heurigraph image list failed: %s" (string-trim output)))
+    (let ((assets (heurigraph--parse-json-output output "image list")))
+      (unless (listp assets)
+        (user-error "Heurigraph returned an invalid image list"))
+      assets)))
+
+(defun heurigraph--image-public-path (asset)
+  "Return the safe public path represented by image ASSET."
+  (let ((id (alist-get 'id asset))
+        (path (alist-get 'path asset)))
+    (unless (and (stringp id)
+                 (string-match-p "\\`img-[0-9A-Z]\\{4\\}\\'" id)
+                 (stringp path)
+                 (string-match-p
+                  "\\`images/img-[0-9A-Z]\\{4\\}\\.\\(?:png\\|jpe?g\\|gif\\|svg\\)\\'"
+                  path))
+      (user-error "Heurigraph returned invalid image metadata"))
+    (concat "/" path)))
+
+(defun heurigraph--read-image ()
+  "Select and return one managed project image."
+  (let* ((assets (heurigraph--image-assets))
+         (candidates
+          (mapcar
+           (lambda (asset)
+             (let ((id (alist-get 'id asset))
+                   (extension (alist-get 'extension asset)))
+               (cons (format "%s  [%s]" id extension) asset)))
+           assets)))
+    (unless candidates
+      (user-error "No managed images found; run M-x heurigraph-import-image"))
+    (cdr (assoc (completing-read "Image id: " candidates nil t) candidates))))
+
+(defun heurigraph--image-mutation (args description)
+  "Run image ARGS and return one validated asset for DESCRIPTION."
+  (let* ((result (heurigraph--call-output (append args '("--json"))))
+         (code (car result))
+         (output (cdr result)))
+    (unless (zerop code)
+      (user-error "heurigraph %s failed: %s" description (string-trim output)))
+    (let ((asset (heurigraph--parse-json-output output description)))
+      (heurigraph--image-public-path asset)
+      asset)))
+
 ;;;###autoload
-(defalias 'heurigraph-insert-image #'heurigraph-insert-diagram)
+(defun heurigraph-import-image (file)
+  "Copy external image FILE into `images/' with the next `img-XXXX' id."
+  (interactive (list (read-file-name "Import image: " nil nil t)))
+  (let* ((asset (heurigraph--image-mutation
+                 (list "image" "add" (expand-file-name file))
+                 "image add"))
+         (id (alist-get 'id asset)))
+    (message "Imported image %s" id)
+    asset))
+
+;;;###autoload
+(defun heurigraph-rename-image (file)
+  "Rename image FILE inside `images/' to the next available `img-XXXX' id.
+The CLI refuses files outside the project image directory.  If FILE is visited,
+retarget that buffer to the new filename after the filesystem rename."
+  (interactive
+   (let ((directory (expand-file-name "images" (heurigraph--root))))
+     (unless (file-directory-p directory)
+       (user-error "No images directory found; run M-x heurigraph-init"))
+     (list (read-file-name "Image to assign next id: " directory nil t))))
+  (let* ((expanded (expand-file-name file))
+         (buffer (get-file-buffer expanded))
+         (asset (heurigraph--image-mutation
+                 (list "image" "rename" expanded)
+                 "image rename"))
+         (new-path (expand-file-name (alist-get 'path asset)
+                                     (heurigraph--root))))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        ;; The CLI has already moved the file; only retarget the buffer.
+        (set-visited-file-name new-path t nil)))
+    (message "Renamed image to %s" (alist-get 'id asset))
+    asset))
+
+;;;###autoload
+(defun heurigraph-insert-image (id path)
+  "Insert the managed image identified by ID at project-relative PATH.
+Interactive selection is by `img-XXXX' id.  The emitted Typst source resolves
+the stored extension and intentionally adds no description, tag, or caption."
+  (interactive
+   (let ((asset (heurigraph--read-image)))
+     (list (alist-get 'id asset) (alist-get 'path asset))))
+  (let ((public-path
+         (heurigraph--image-public-path `((id . ,id) (path . ,path)))))
+    (unless (bolp) (insert "\n"))
+    (insert (format "#image(\"%s\")" (heurigraph--typst-string public-path)))
+    (message "Inserted image %s" id)))
 
 (defun heurigraph--id-at-file ()
   "Extract a stable note or page id from the current file name, or nil."

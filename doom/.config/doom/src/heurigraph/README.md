@@ -78,6 +78,8 @@ Restart Doom after updating `config.el`. Heurigraph's Doom shortcuts are under
 | `SPC e W` | New weeknote |
 | `SPC e D` | New CeTZ diagram from the bundled template |
 | `SPC e i` | Insert a diagram with editable image parameters |
+| `SPC e M` | Insert a managed non-CeTZ image by `img-XXXX` ID |
+| `SPC e A` | Add subjects from the project ontology |
 | `SPC e f` | Find node |
 | `SPC e l` | Insert link |
 | `SPC e t` | Insert transclusion |
@@ -102,8 +104,12 @@ Restart Doom after updating `config.el`. Heurigraph's Doom shortcuts are under
 | `heurigraph-new-content` | Create a content page in the project-wide `prefix-XXXX` sequence. |
 | `heurigraph-new-journal` | Create a journal entry in the project-wide `prefix-XXXX` sequence. |
 | `heurigraph-new-weeknote` | Create `YYYY-WXX`, defaulting to the current ISO week. |
-| `heurigraph-new-diagram` | Create and open the next `dia-XXXX` CeTZ source. |
+| `heurigraph-new-diagram` | Create and open the next `cetz-XXXX` CeTZ source. |
 | `heurigraph-insert-diagram` | Insert a diagram with editable alt text, width, and caption. |
+| `heurigraph-import-image` | Copy an external image into `images/` under the next `img-XXXX` ID. |
+| `heurigraph-rename-image` | Rename a file already in `images/` to the next managed ID. |
+| `heurigraph-insert-image` | Look up a managed image by ID and insert its `#image(...)` call. |
+| `heurigraph-add-subjects` | Add one or more project-ontology subjects to the current tree. |
 | `heurigraph-find-node` | Search titles, ids, subjects, taxons, and keywords. |
 | `heurigraph-insert-link` | Search by title and insert `#link-to("id", text: "Title")`. |
 | `heurigraph-insert-transclusion` | Search by title and insert `#transclude("id")`. |
@@ -134,6 +140,8 @@ Enable `heurigraph-note-mode` and use `C-c h`:
 | `C-c h W` | New weeknote |
 | `C-c h D` | New CeTZ diagram |
 | `C-c h i` | Insert a CeTZ diagram image |
+| `C-c h M` | Insert a managed non-CeTZ image by ID |
+| `C-c h A` | Add subjects from the project ontology |
 | `C-c h V` | Toggle explicit public/private metadata |
 | `C-c h f` | Find node |
 | `C-c h l` | Insert link |

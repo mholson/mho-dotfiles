@@ -1,7 +1,7 @@
 ;;; heurigraph-mode.el --- Minor mode for Heurigraph Typst notes -*- lexical-binding: t; -*-
 
-;; Version: 1.16.2
-;; Package-Requires: ((emacs "30.2") (heurigraph "1.16.2"))
+;; Version: 1.16.3
+;; Package-Requires: ((emacs "30.2") (heurigraph "1.16.3"))
 
 ;;; Commentary:
 
@@ -30,6 +30,7 @@
   "C-c h W" #'heurigraph-new-weeknote
   "C-c h D" #'heurigraph-new-diagram
   "C-c h i" #'heurigraph-insert-diagram
+  "C-c h M" #'heurigraph-insert-image
   "C-c h A" #'heurigraph-add-subjects
   "C-c h V" #'heurigraph-toggle-public
   "C-c h f" #'heurigraph-find-node
@@ -92,6 +93,7 @@
   "W" #'heurigraph-new-weeknote
   "D" #'heurigraph-new-diagram
   "i" #'heurigraph-insert-diagram
+  "M" #'heurigraph-insert-image
   "A" #'heurigraph-add-subjects
   "V" #'heurigraph-toggle-public
   "f" #'heurigraph-find-node

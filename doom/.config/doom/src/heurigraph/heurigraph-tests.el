@@ -109,8 +109,7 @@
                    '("new" "A Concept"
                      "--taxon" "math:concept"
                      "--subject" "math:algebra"
-                     "--keywords" "algebra")))
-    (should-not (member "--prefix" captured))))
+                     "--keywords" "algebra")))))
 
 (ert-deftest heurigraph-public-toggle-round-trips-tree-metadata ()
   (with-temp-buffer
@@ -134,7 +133,7 @@
 
 (ert-deftest heurigraph-public-toggle-round-trips-page-metadata ()
   (with-temp-buffer
-    (insert "#note-meta(id: \"0001\", title: \"Journal\", kind: \"journal\", date: \"2026-07-14\")\n")
+    (insert "#note-meta(id: \"mho-0001\", title: \"Journal\", kind: \"journal\", date: \"2026-07-14\")\n")
     (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _args) t)))
       (heurigraph-toggle-public))
     (should (string-match-p "public: true" (buffer-string)))
@@ -142,6 +141,85 @@
     (should (string-match-p "public: false" (buffer-string)))
     (should (string-match-p "title: \"Journal\"" (buffer-string)))
     (should (= (how-many "public:" (point-min) (point-max)) 1))))
+
+(ert-deftest heurigraph-add-subjects-appends-without-duplicates ()
+  (with-temp-buffer
+    (insert "#knowledge-node(\n  id: \"mat-0001\",\n  title: \"Null Factor Law\",\n  taxon: \"math:law\",\n  subjects: (\"math:algebra\",),\n)\n")
+    (heurigraph-add-subjects '("math:algebra" "math:number" "math:operations"))
+    (should (string-match-p
+             (regexp-quote
+              "subjects: (\"math:algebra\", \"math:number\", \"math:operations\",)")
+             (buffer-string)))
+    (should (= (how-many "math:algebra" (point-min) (point-max)) 1))))
+
+(ert-deftest heurigraph-add-subjects-preserves-multiline-metadata ()
+  (with-temp-buffer
+    (insert (concat
+             "#knowledge-node(\n"
+             "  id: \"mat-0001\",\n"
+             "  title: \"Null Factor Law\",\n"
+             "  taxon: \"math:law\",\n"
+             "  subjects: (\n"
+             "    \"math:algebra\",\n"
+             "    // Keep this ontology note.\n"
+             "  ),\n"
+             ")\n"))
+    (heurigraph-add-subjects '("math:number"))
+    (should (string-match-p "// Keep this ontology note" (buffer-string)))
+    (should (string-match-p "    \"math:number\",\n  )" (buffer-string)))))
+
+(ert-deftest heurigraph-add-subjects-creates-a-missing-field ()
+  (with-temp-buffer
+    (insert "#knowledge-node(id: \"mat-0001\", title: \"A\", taxon: \"math:concept\")\n")
+    (heurigraph-add-subjects '("math:number"))
+    (should (string-match-p
+             (regexp-quote "subjects: (\"math:number\",)")
+             (buffer-string)))))
+
+(ert-deftest heurigraph-add-subjects-looks-up-labels-and-excludes-existing-ids ()
+  (with-temp-buffer
+    (insert "#knowledge-node(id: \"mat-0001\", subjects: (\"math:algebra\",))\n")
+    (cl-letf (((symbol-function 'heurigraph--ontology-candidates)
+               (lambda (&rest _args)
+                 '(("Algebra — math:algebra" . ((id . "math:algebra")))
+                   ("Number — math:number" . ((id . "math:number"))))))
+              ((symbol-function 'completing-read-multiple)
+               (lambda (_prompt candidates &rest _args)
+                 (should (equal (mapcar #'car candidates)
+                                '("Number — math:number")))
+                 '("Number — math:number"))))
+      (should (equal (heurigraph--read-additional-subjects)
+                     '("math:number"))))))
+
+(ert-deftest heurigraph-subject-metadata-ignores-ids-inside-comments ()
+  (with-temp-buffer
+    (insert (concat
+             "#knowledge-node(\n"
+             "  id: \"mat-0001\",\n"
+             "  subjects: (\n"
+             "    \"math:algebra\",\n"
+             "    // see also \"math:number\"\n"
+             "    /* \"math:calculus\" is deferred */\n"
+             "  ),\n"
+             ")\n"))
+    ;; Only the real entry counts; quoted ids in line and block comments must
+    ;; not be reported as present, or they would be silently un-completable.
+    (should (equal (plist-get (heurigraph--subject-metadata) :ids)
+                   '("math:algebra")))))
+
+(ert-deftest heurigraph-add-subjects-adds-an-id-mentioned-only-in-a-comment ()
+  (with-temp-buffer
+    (insert (concat
+             "#knowledge-node(\n"
+             "  id: \"mat-0001\",\n"
+             "  subjects: (\n"
+             "    \"math:algebra\",\n"
+             "    // \"math:number\" was considered\n"
+             "  ),\n"
+             ")\n"))
+    (heurigraph-add-subjects '("math:number"))
+    (should (string-match-p "    \"math:number\",\n  )" (buffer-string)))
+    (should (= (how-many "\"math:number\"" (point-min) (point-max)) 2))))
 
 (ert-deftest heurigraph-collection-mode-enables-only-for-manifests ()
   (heurigraph-test--with-project
@@ -379,7 +457,9 @@
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "D"))
               #'heurigraph-new-diagram))
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "i"))
-              #'heurigraph-insert-diagram)))
+              #'heurigraph-insert-diagram))
+  (should (eq (lookup-key heurigraph-doom-leader-map (kbd "M"))
+              #'heurigraph-insert-image)))
 
 (ert-deftest heurigraph-weeknote-forwards-manual-iso-year-and-week ()
   (let (captured)
@@ -404,8 +484,8 @@
                (lambda (args)
                  (setq captured args)
                  (cons 0 "mho-0042\n"))))
-      (should (equal (heurigraph-next-id "mho") "Next id: mho-0042"))
-      (should (equal captured '("next-id" "mho"))))))
+      (should (equal (heurigraph-next-id) "Next id: mho-0042"))
+      (should (equal captured '("next-id"))))))
 
 (ert-deftest heurigraph-book-rows-reports-invalid-json ()
   (cl-letf (((symbol-function 'heurigraph--call-output)
@@ -437,16 +517,82 @@
 (ert-deftest heurigraph-insert-diagram-emits-editable-parameters ()
   (with-temp-buffer
     (heurigraph-insert-diagram
-     "dia-0001" "A dependency graph" "65%" "Graph structure")
+     "cetz-0001" "A dependency graph" "65%" "Graph structure")
     (should
      (equal (buffer-string)
-            "#cetz-diagram(\n  \"dia-0001\",\n  alt: \"A dependency graph\",\n  width: 65%,\n  caption: \"Graph structure\",\n)"))))
+            "#cetz-diagram(\n  \"cetz-0001\",\n  alt: \"A dependency graph\",\n  width: 65%,\n  caption: \"Graph structure\",\n)"))))
 
 (ert-deftest heurigraph-insert-diagram-omits-an-empty-caption ()
   (with-temp-buffer
-    (heurigraph-insert-diagram "dia-0002" "Two nodes" "70%" "")
+    (heurigraph-insert-diagram "cetz-0002" "Two nodes" "70%" "")
     (should (string-match-p "width: 70%" (buffer-string)))
     (should-not (string-match-p "caption:" (buffer-string)))))
+
+(ert-deftest heurigraph-diagram-completion-only-lists-canonical-cetz-assets ()
+  (heurigraph-test--with-project ""
+    (let ((directory (expand-file-name "diagrams" root)))
+      (make-directory directory t)
+      (with-temp-file (expand-file-name "cetz-0001.typ" directory)
+        (insert "// Title: Canonical\n"))
+      (with-temp-file (expand-file-name "dia-0001.typ" directory)
+        (insert "// Title: Old namespace\n"))
+      (with-temp-file (expand-file-name "sketch.typ" directory)
+        (insert "// Title: Unmanaged\n"))
+      (let ((candidates (heurigraph--diagram-candidates)))
+        (should (= (length candidates) 1))
+        (should (equal (plist-get (cdar candidates) :name) "cetz-0001"))))))
+
+(ert-deftest heurigraph-insert-image-resolves-a-managed-id-to-its-path ()
+  (with-temp-buffer
+    (heurigraph-insert-image "img-000A" "images/img-000A.png")
+    (should (equal (buffer-string) "#image(\"/images/img-000A.png\")"))))
+
+(ert-deftest heurigraph-import-image-uses-structured-cli-json ()
+  (let (captured)
+    (cl-letf (((symbol-function 'heurigraph--call-output)
+               (lambda (args)
+                 (setq captured args)
+                 (cons 0
+                       "{\"id\":\"img-0001\",\"path\":\"images/img-0001.png\",\"extension\":\"png\"}"))))
+      (let ((asset (heurigraph-import-image "/tmp/source.png")))
+        (should (equal (alist-get 'id asset) "img-0001"))
+        (should (equal captured
+                       '("image" "add" "/tmp/source.png" "--json")))))))
+
+(ert-deftest heurigraph-rename-image-requests-the-next-managed-id ()
+  (let (captured)
+    (cl-letf (((symbol-function 'heurigraph--call-output)
+               (lambda (args)
+                 (setq captured args)
+                 (cons 0
+                       "{\"id\":\"img-000B\",\"path\":\"images/img-000B.jpg\",\"extension\":\"jpg\"}"))))
+      (let ((asset (heurigraph-rename-image "/tmp/project/images/photo.jpg")))
+        (should (equal (alist-get 'id asset) "img-000B"))
+        (should (equal captured
+                       '("image" "rename" "/tmp/project/images/photo.jpg" "--json")))))))
+
+(ert-deftest heurigraph-rename-image-retargets-a-visited-buffer-after-cli-move ()
+  (heurigraph-test--with-project ""
+    (let* ((directory (expand-file-name "images" root))
+           (source (expand-file-name "photo.jpg" directory))
+           (destination (expand-file-name "img-0001.jpg" directory))
+           buffer)
+      (make-directory directory t)
+      (with-temp-file source (insert "image"))
+      (setq buffer (find-file-noselect source))
+      (unwind-protect
+          (cl-letf (((symbol-function 'heurigraph--call-output)
+                     (lambda (_args)
+                       (rename-file source destination)
+                       (cons 0
+                             "{\"id\":\"img-0001\",\"path\":\"images/img-0001.jpg\",\"extension\":\"jpg\"}"))))
+            (with-current-buffer buffer
+              (heurigraph-rename-image source)
+              (should (equal buffer-file-name destination))
+              (should (file-exists-p destination))
+              (should-not (file-exists-p source))))
+        (when (buffer-live-p buffer)
+          (kill-buffer buffer))))))
 
 (ert-deftest heurigraph-doom-setup-installs-spc-e-prefix ()
   (unwind-protect

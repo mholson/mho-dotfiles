@@ -4,7 +4,7 @@
 
 (define-package
   "heurigraph"
-  "1.16.2"
+  "1.16.3"
   "Ontology-aware Emacs authoring for Heurigraph knowledge forests"
   '((emacs "30.2")))
 

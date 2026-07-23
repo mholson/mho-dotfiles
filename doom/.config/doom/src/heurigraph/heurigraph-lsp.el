@@ -1,7 +1,7 @@
 ;;; heurigraph-lsp.el --- LSP integration for Heurigraph -*- lexical-binding: t; -*-
 
 ;; Author: Heurigraph
-;; Version: 1.16.2
+;; Version: 1.16.3
 ;; Package-Requires: ((emacs "30.2"))
 ;; Keywords: tools, languages, typst
 
