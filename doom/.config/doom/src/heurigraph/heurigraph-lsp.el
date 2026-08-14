@@ -2,7 +2,7 @@
 
 ;; Author: Mark Olson <41911657+mholson@users.noreply.github.com>
 ;; Maintainer: Mark Olson <41911657+mholson@users.noreply.github.com>
-;; Version: 4.2.0
+;; Version: 4.3.1
 ;; Package-Requires: ((emacs "30.2"))
 ;; Keywords: tools, languages, typst
 ;; URL: https://github.com/mholson/Heurigraph
