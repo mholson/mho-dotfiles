@@ -44,7 +44,7 @@
 
 (setq doom-variable-pitch-font (font-spec :family "Iosevka Nerd Font Mono" :size 16))
 
-;;(setq doom-font (font-spec :family "Iosevka Nerd Font Mono" :size 12 :weight 'regular))
+(setq doom-big-font (font-spec :family "Iosevka Nerd Font Mono" :size 32 ))
 
 ;;(set-fontset-font t nil "SF Pro Display" nil 'append)
 ;;(load! "src/sf.el")
@@ -132,7 +132,13 @@
   :load-path "~/.config/doom/src/heurigraph"
   :config
   (setq heurigraph-executable "heurigraph"
-        heurigraph-notes-directory "~/GitHub/KogMath"))
+        heurigraph-notes-directory "~/Kognity/kogs"))
+(setq heurigraph-new-public-by-default t)
+(use-package! heurigraph-lsp
+  :after (heurigraph lsp-mode)
+  :load-path "~/.config/doom/src/heurigraph"
+  :config
+  (heurigraph-lsp-register-lsp-mode))
 
 (use-package! heurigraph-mode
   :after heurigraph
@@ -996,13 +1002,8 @@ Works in Dired (file at point) or Org buffers."
 
 (use-package! lorem-ipsum)
 
-(after! eglot
-  (add-to-list 'eglot-server-programs
-               `(typst-ts-mode .
-                 ,(eglot-alternatives
-                   `(,typst-ts-lsp-download-path
-                     "tinymist"
-                     "typst-lsp")))))
+(use-package! typst-ts-mode
+  :mode ("\\.typ\\'" . typst-ts-mode))
 
 (setenv "PATH" "/usr/local/bin:/Library/TeX/texbin/:$PATH" t)
 

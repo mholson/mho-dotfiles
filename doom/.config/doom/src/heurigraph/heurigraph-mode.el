@@ -1,7 +1,12 @@
 ;;; heurigraph-mode.el --- Minor mode for Heurigraph Typst notes -*- lexical-binding: t; -*-
 
-;; Version: 1.16.3
-;; Package-Requires: ((emacs "30.2") (heurigraph "1.16.3"))
+;; Author: Mark Olson <41911657+mholson@users.noreply.github.com>
+;; Maintainer: Mark Olson <41911657+mholson@users.noreply.github.com>
+;; Version: 4.2.0
+;; Package-Requires: ((emacs "30.2") (heurigraph "4.2.0"))
+;; Keywords: tools, languages, typst
+;; URL: https://github.com/mholson/Heurigraph
+;; SPDX-License-Identifier: MIT OR Apache-2.0
 
 ;;; Commentary:
 
@@ -31,18 +36,16 @@
   "C-c h D" #'heurigraph-new-diagram
   "C-c h i" #'heurigraph-insert-diagram
   "C-c h M" #'heurigraph-insert-image
+  "C-c h Q" #'heurigraph-insert-rights
+  "C-c h k" #'heurigraph-insert-external-id
+  "C-c h y" #'heurigraph-insert-publication-reference
   "C-c h A" #'heurigraph-add-subjects
   "C-c h V" #'heurigraph-toggle-public
+  "C-c h N" #'heurigraph-rename-file-from-title
   "C-c h f" #'heurigraph-find-node
   "C-c h l" #'heurigraph-insert-link
   "C-c h t" #'heurigraph-insert-transclusion
   "C-c h r" #'heurigraph-insert-assertion
-  "C-c h R" #'heurigraph-insert-depends-on
-  "C-c h u" #'heurigraph-insert-uses
-  "C-c h e" #'heurigraph-insert-enables-method
-  "C-c h x" #'heurigraph-insert-solution-to
-  "C-c h s" #'heurigraph-insert-strategy-for
-  "C-c h m" #'heurigraph-insert-addresses
   "C-c h v" #'heurigraph-validate
   "C-c h S" #'heurigraph-scan
   "C-c h b" #'heurigraph-build
@@ -53,6 +56,9 @@
   "C-c h o" #'heurigraph-open-site
   "C-c h P" #'heurigraph-pdf
   "C-c h a" #'heurigraph-agent-context
+  "C-c h ?" #'heurigraph-ai-workflow
+  "C-c h X" #'heurigraph-mcp-inspect
+  "C-c h Y" #'heurigraph-review-center
   "C-c h q" #'heurigraph-suggest-list
   "C-c h O" #'heurigraph-ontology-open
   "C-c h F" #'heurigraph-refresh-completions
@@ -94,8 +100,12 @@
   "D" #'heurigraph-new-diagram
   "i" #'heurigraph-insert-diagram
   "M" #'heurigraph-insert-image
+  "Q" #'heurigraph-insert-rights
+  "k" #'heurigraph-insert-external-id
+  "y" #'heurigraph-insert-publication-reference
   "A" #'heurigraph-add-subjects
   "V" #'heurigraph-toggle-public
+  "N" #'heurigraph-rename-file-from-title
   "f" #'heurigraph-find-node
   "l" #'heurigraph-insert-link
   "t" #'heurigraph-insert-transclusion
@@ -109,6 +119,9 @@
   "O" #'heurigraph-ontology-open
   "F" #'heurigraph-refresh-completions
   "P" #'heurigraph-pdf
+  "?" #'heurigraph-ai-workflow
+  "X" #'heurigraph-mcp-inspect
+  "Y" #'heurigraph-review-center
   "L" #'heurigraph-lsp-start
   "I" #'heurigraph-lsp-refresh)
 
@@ -152,9 +165,12 @@ and mathematical structures, plus registry refresh and forest validation."
 
 ;;;###autoload
 (defun heurigraph-enable-for-typst ()
-  "Enable `heurigraph-note-mode' in Typst buffers inside a Heurigraph project."
+  "Enable Heurigraph authoring and LSP support in governed Typst buffers."
   (when (locate-dominating-file default-directory "heurigraph.toml")
-    (heurigraph-note-mode 1)))
+    (heurigraph-note-mode 1)
+    (when (and (bound-and-true-p heurigraph-lsp-auto-start)
+               (fboundp 'heurigraph-lsp-ensure))
+      (heurigraph-lsp-ensure))))
 
 ;;;###autoload
 (defun heurigraph-enable-for-collection ()
@@ -163,8 +179,11 @@ and mathematical structures, plus registry refresh and forest validation."
               (file buffer-file-name)
               (collections (file-name-as-directory
                             (expand-file-name "collections" root))))
-    (when (string-prefix-p collections (expand-file-name file))
-      (heurigraph-collection-mode 1))))
+    (when (file-in-directory-p (expand-file-name file) collections)
+      (heurigraph-collection-mode 1)
+      (when (and (bound-and-true-p heurigraph-lsp-auto-start)
+                 (fboundp 'heurigraph-lsp-ensure))
+        (heurigraph-lsp-ensure)))))
 
 ;;;###autoload
 (defun heurigraph-enable-for-ontology ()
@@ -174,7 +193,7 @@ and mathematical structures, plus registry refresh and forest validation."
               (ontology (file-name-as-directory
                          (let ((heurigraph-notes-directory root))
                            (heurigraph--ontology-root-path)))))
-    (when (string-prefix-p ontology (expand-file-name file))
+    (when (file-in-directory-p (expand-file-name file) ontology)
       (heurigraph-ontology-mode 1))))
 
 (provide 'heurigraph-mode)

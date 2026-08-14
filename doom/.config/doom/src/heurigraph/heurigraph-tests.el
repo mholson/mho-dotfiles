@@ -1,10 +1,13 @@
-;;; heurigraph-tests.el --- Tests for Heurigraph Emacs helpers -*- lexical-binding: t; -*-
+;;; heurigraph-tests.el --- Tests for Heurigraph Emacs helpers -*- lexical-binding: t; no-byte-compile: t; -*-
+
+;;; Code:
 
 (require 'ert)
 (require 'cl-lib)
 (require 'heurigraph)
 (require 'heurigraph-lsp)
 (require 'heurigraph-mode)
+(require 'heurigraph-education)
 
 (defmacro heurigraph-test--with-project (manifest &rest body)
   "Create a temporary Heurigraph project containing MANIFEST, then run BODY."
@@ -21,6 +24,74 @@
              (insert ,manifest))
            ,@body)
        (delete-directory root t))))
+
+(ert-deftest heurigraph-package-descriptor-starts-with-define-package ()
+  (with-temp-buffer
+    (insert-file-contents
+     (expand-file-name "heurigraph-pkg.el"
+                       (file-name-directory
+                        (or (locate-library "heurigraph-tests")
+                            "emacs/heurigraph-tests.el"))))
+    (let ((form (read (current-buffer))))
+      (should (eq (car form) 'define-package))
+      (should (equal (nth 1 form) "heurigraph"))
+      (should (stringp (nth 2 form))))))
+
+(ert-deftest heurigraph-education-module-preview-is-read-only-cli-delegation ()
+  (let (captured)
+    (cl-letf (((symbol-function 'heurigraph--run)
+               (lambda (args &optional buffer)
+                 (setq captured (list args buffer))
+                 0)))
+      (heurigraph-education-module-preview)
+      (should
+       (equal captured
+              '(("module" "preview") "*heurigraph-module-migration*"))))))
+
+(ert-deftest heurigraph-education-module-migrate-passes-the-reviewed-digest ()
+  (let ((digest (concat "sha256:" (make-string 64 ?a)))
+        captured
+        refreshed)
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t))
+              ((symbol-function 'heurigraph--run)
+               (lambda (args &optional buffer)
+                 (setq captured (list args buffer))
+                 0))
+              ((symbol-function 'heurigraph--refresh-active-lsp)
+               (lambda () (setq refreshed t))))
+      (heurigraph-education-module-migrate digest)
+      (should
+       (equal captured
+              `(("module" "migrate" "--plan" ,digest)
+                "*heurigraph-module-migration*")))
+      (should refreshed))))
+
+(ert-deftest heurigraph-root-prefers-nearest-forest-over-editor-project ()
+  (let* ((outer (make-temp-file "heurigraph-outer-project-" t))
+         (forest (expand-file-name "nested/forest" outer))
+         (note (expand-file-name "notes/test-0001.typ" forest))
+         (heurigraph-notes-directory nil)
+         (heurigraph-executable "heurigraph")
+         captured-directory)
+    (unwind-protect
+        (progn
+          (make-directory (file-name-directory note) t)
+          (with-temp-file (expand-file-name "heurigraph.toml" forest)
+            (insert "[project]\nname = \"Nested\"\n"))
+          (with-temp-buffer
+            (setq buffer-file-name note
+                  default-directory (file-name-directory note))
+            (cl-letf (((symbol-function 'project-current) (lambda (&rest _) 'outer))
+                      ((symbol-function 'project-root) (lambda (_) outer))
+                      ((symbol-function 'executable-find) (lambda (_) "/bin/true"))
+                      ((symbol-function 'call-process)
+                       (lambda (&rest _)
+                         (setq captured-directory default-directory)
+                         0)))
+              (should (file-equal-p (heurigraph--root) forest))
+              (heurigraph--call-output '("validate"))
+              (should (file-equal-p captured-directory forest)))))
+      (delete-directory outer t))))
 
 (ert-deftest heurigraph-book-output-name-defaults-by-profile ()
   (heurigraph-test--with-project
@@ -59,6 +130,80 @@
   (should (equal (heurigraph--typst-string "a\\b\"c")
                  "a\\\\b\\\"c")))
 
+(ert-deftest heurigraph-normalizes-prompted-string-lists ()
+  (should
+   (equal (heurigraph--normalize-string-list '("  Ruler " "" " Formula booklet"))
+          '("Ruler" "Formula booklet"))))
+
+(ert-deftest heurigraph-inserts-structured-assessment-data ()
+  (with-temp-buffer
+    (heurigraph-insert-assessment-data
+     2 "b" 3 "false" "short-response" "familiar" '("explore" "generalise"))
+    (should
+     (equal
+      (buffer-string)
+      "#assessment-data(\n  order: 2,\n  label: \"b\",\n  marks: 3,\n  calculator: false,\n  response-format: \"short-response\",\n  cognitive-demand: \"familiar\",\n  inquiry-stages: (\"explore\", \"generalise\"),\n)"))))
+
+(ert-deftest heurigraph-inserts-assessment-scheme-and-component-data ()
+  (with-temp-buffer
+    (heurigraph-insert-assessment-scheme-data "complete" nil 180)
+    (insert "\n")
+    (heurigraph-insert-assessment-component-data "external" 40 90 nil)
+    (should
+     (equal
+      (buffer-string)
+      "#assessment-scheme-data(\n  completeness: \"complete\",\n  declared-external-duration-minutes: 180,\n)\n#assessment-component-data(\n  mode: \"external\",\n  weighting-percent: 40,\n  duration-minutes: 90,\n)"))))
+
+(ert-deftest heurigraph-inserts-mark-scheme-point ()
+  (with-temp-buffer
+    (heurigraph-insert-mark-scheme-point 1 "M1" 1 "Forms an equation.")
+    (should
+     (equal
+      (buffer-string)
+      "#mark-scheme-point(\n  order: 1,\n  code: \"M1\",\n  marks: 1,\n  description: \"Forms an equation.\",\n)"))))
+
+(ert-deftest heurigraph-inserts-external-id ()
+  (with-temp-buffer
+    (heurigraph-insert-external-id
+     "question-bank" "QB-48291" "https://example.org/QB-48291" "question" "7")
+    (should
+     (equal
+      (buffer-string)
+      "#external-id(\n  system: \"question-bank\",\n  value: \"QB-48291\",\n  url: \"https://example.org/QB-48291\",\n  record-type: \"question\",\n  revision: \"7\",\n)"))))
+
+(ert-deftest heurigraph-inserts-exam-administration ()
+  (with-temp-buffer
+    (heurigraph-insert-exam-administration
+     "International Baccalaureate"
+     "Diploma Programme"
+     "Mathematics: Analysis and Approaches HL"
+     2026 "May" "TZ2" "Paper 1" "1" "en-GB" "2"
+     90 80 "complete" "official" '("Formula booklet" "Ruler"))
+    (should
+     (equal
+      (buffer-string)
+      "#exam-administration(\n  authority: \"International Baccalaureate\",\n  course: \"Mathematics: Analysis and Approaches HL\",\n  year: 2026,\n  programme: \"Diploma Programme\",\n  session: \"May\",\n  time-zone: \"TZ2\",\n  paper: \"Paper 1\",\n  component: \"1\",\n  language: \"en-GB\",\n  version: \"2\",\n  duration-minutes: 90,\n  declared-total-marks: 80,\n  coverage: \"complete\",\n  status: \"official\",\n  permitted-materials: (\"Formula booklet\", \"Ruler\"),\n)"))))
+
+(ert-deftest heurigraph-inserts-rights ()
+  (with-temp-buffer
+    (heurigraph-insert-rights
+     "licensed" "Example Press" "Classroom licence"
+     '("classroom" "internal assessment") '("no redistribution")
+     "Used with permission." "https://example.org/licence")
+    (should
+     (equal
+      (buffer-string)
+      "#rights(\n  status: \"licensed\",\n  holder: \"Example Press\",\n  license: \"Classroom licence\",\n  permitted-uses: (\"classroom\", \"internal assessment\"),\n  restrictions: (\"no redistribution\"),\n  attribution: \"Used with permission.\",\n  source: \"https://example.org/licence\",\n)"))))
+
+(ert-deftest heurigraph-inserts-publication-reference ()
+  (with-temp-buffer
+    (heurigraph-insert-publication-reference
+     "artin1991" "adapted-from" "Chapter 2, Exercise 14" "2" 87)
+    (should
+     (equal
+      (buffer-string)
+      "#publication-reference(\n  citation: \"artin1991\",\n  role: \"adapted-from\",\n  locator: \"Chapter 2, Exercise 14\",\n  edition: \"2\",\n  page: 87,\n)"))))
+
 (ert-deftest heurigraph-typst-call-end-skips-content-block-parentheses ()
   (with-temp-buffer
     (insert "#knowledge-node(id: \"mho-0001\", title: [Text \\] ) and [nested (]], public: false)\nAFTER")
@@ -73,6 +218,70 @@
   (let ((heurigraph-executable "definitely-missing-heurigraph"))
     (cl-letf (((symbol-function 'executable-find) (lambda (_name) nil)))
       (should-error (heurigraph--require-executable) :type 'user-error))))
+
+(ert-deftest heurigraph-compacts-command-output-for-the-minibuffer ()
+  (should
+   (equal (heurigraph--compact-output "  created page\n  notes/example.typ \n")
+          "created page notes/example.typ")))
+
+(ert-deftest heurigraph-auto-output-uses-minibuffer-for-short-successes ()
+  (let ((heurigraph-output-display 'auto)
+        (heurigraph-minibuffer-output-max-length 40))
+    (should (heurigraph--output-in-minibuffer-p
+             0 "created page\nnotes/example.typ\n"))
+    (should-not (heurigraph--output-in-minibuffer-p
+                 0 (make-string 41 ?x)))))
+
+(ert-deftest heurigraph-output-modes-never-hide-failures ()
+  (dolist (mode '(auto minibuffer buffer))
+    (let ((heurigraph-output-display mode))
+      (should-not
+       (heurigraph--output-in-minibuffer-p 1 "validation failed"))
+      (should-not
+       (heurigraph--output-in-minibuffer-p "killed" "process terminated")))))
+
+(ert-deftest heurigraph-minibuffer-mode-compacts-long-successes ()
+  (let ((heurigraph-output-display 'minibuffer)
+        (heurigraph-minibuffer-output-max-length 12))
+    (should
+     (heurigraph--output-in-minibuffer-p 0 (make-string 100 ?x)))
+    (should
+     (<= (string-width
+          (heurigraph--minibuffer-summary '("scan") (make-string 100 ?x)))
+         (+ (string-width "Heurigraph scan: ")
+            heurigraph-minibuffer-output-max-length)))))
+
+(ert-deftest heurigraph-run-keeps-full-output-while-messaging-short-result ()
+  (let ((buffer-name "*heurigraph-output-test*")
+        (heurigraph-output-display 'auto)
+        (heurigraph-minibuffer-output-max-length 80)
+        displayed
+        status)
+    (unwind-protect
+        (cl-letf (((symbol-function 'heurigraph--require-executable)
+                   (lambda () "heurigraph"))
+                  ((symbol-function 'call-process)
+                   (lambda (_program _infile destination _display &rest _args)
+                     (with-current-buffer destination
+                       (insert "scanned 4 trees\n"))
+                     0))
+                  ((symbol-function 'display-buffer)
+                   (lambda (buffer &rest _args)
+                     (setq displayed buffer)))
+                  ((symbol-function 'message)
+                   (lambda (format-string &rest args)
+                     (setq status (apply #'format format-string args)))))
+          (should (zerop (heurigraph--run '("scan") buffer-name)))
+          (should-not displayed)
+          (should (equal status "Heurigraph scan: scanned 4 trees"))
+          (with-current-buffer buffer-name
+            (should (string-match-p
+                     (regexp-quote
+                      "$ heurigraph scan\n\nscanned 4 trees\n\n[exit 0]\n")
+                     (buffer-string)))
+            (should (derived-mode-p 'special-mode))))
+      (when-let ((buffer (get-buffer buffer-name)))
+        (kill-buffer buffer)))))
 
 (ert-deftest heurigraph-book-inserts-ordered-schema-three-blocks ()
   (with-temp-buffer
@@ -99,17 +308,118 @@
                    "[[section.block]]\nkind = \"prose\"\nsource = \"fragments/bridge.typ\"\n\n"))))
 
 (ert-deftest heurigraph-new-delegates-namespace-allocation-to-project-config ()
-  (let (captured)
-    (cl-letf (((symbol-function 'heurigraph--run)
+  (let (captured
+        (heurigraph-new-public-by-default nil))
+    (cl-letf (((symbol-function 'heurigraph--call-output)
                (lambda (args)
                  (setq captured args)
-                 1)))
-      (heurigraph-new "A Concept" "" "math:concept" "math:algebra" "algebra"))
+                 (cons 0 "{\"path\":\"/tmp/heurigraph-new.typ\"}")))
+              ((symbol-function 'file-exists-p) (lambda (_path) t))
+              ((symbol-function 'find-file) #'ignore))
+      (heurigraph-new
+       "A Concept" "" "math:concept" "math:algebra"
+       "zero product property,null factor law"))
     (should (equal captured
                    '("new" "A Concept"
-                     "--taxon" "math:concept"
+                     "--taxon" "math:concept" "--json"
                      "--subject" "math:algebra"
-                     "--keywords" "algebra")))))
+                     "--aliases" "zero product property,null factor law")))))
+
+(ert-deftest heurigraph-new-can-publish-by-default ()
+  (let (captured
+        (heurigraph-new-public-by-default t))
+    (cl-letf (((symbol-function 'heurigraph--call-output)
+               (lambda (args)
+                 (setq captured args)
+                 (cons 0 "{\"path\":\"/tmp/heurigraph-new.typ\"}")))
+              ((symbol-function 'file-exists-p) (lambda (_path) t))
+              ((symbol-function 'find-file) #'ignore))
+      (heurigraph-new "A Concept" "" "math:concept" nil ""))
+    (should (equal captured
+                   '("new" "A Concept"
+                     "--taxon" "math:concept" "--json"
+                     "--public")))))
+
+(ert-deftest heurigraph-new-omits-an-optional-subject ()
+  (let (captured
+        (heurigraph-new-public-by-default nil))
+    (cl-letf (((symbol-function 'heurigraph--call-output)
+               (lambda (args)
+                 (setq captured args)
+                 (cons 0 "{\"path\":\"/tmp/heurigraph-new.typ\"}")))
+              ((symbol-function 'file-exists-p) (lambda (_path) t))
+              ((symbol-function 'find-file) #'ignore))
+      (heurigraph-new "A Curriculum" "" "curriculum:framework" nil ""))
+    (should (equal captured
+                   '("new" "A Curriculum"
+                     "--taxon" "curriculum:framework" "--json")))))
+
+(ert-deftest heurigraph-init-supplies-explicit-project-identities ()
+  (let ((root (make-temp-file "heurigraph-emacs-init-" t))
+        captured
+        (answers '("kogs" "https://example.org/forests/ib-mathematics")))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'read-directory-name)
+                     (lambda (&rest _args) root))
+                    ((symbol-function 'read-string)
+                     (lambda (&rest _args) (pop answers)))
+                    ((symbol-function 'heurigraph--run)
+                     (lambda (args) (setq captured args) 0)))
+            (heurigraph-init))
+          (should
+           (equal
+            captured
+            '("init" "--prefix" "kogs"
+              "--forest-iri" "https://example.org/forests/ib-mathematics"))))
+      (delete-directory root t))))
+
+(ert-deftest heurigraph-new-refreshes-lsp-before-visiting-created-note ()
+  (let* ((root (make-temp-file "heurigraph-new-refresh-test-" t))
+         (note (expand-file-name "notes/kogs-0001--authority.typ" root))
+         events)
+    (unwind-protect
+        (progn
+          (make-directory (file-name-directory note) t)
+          (with-temp-file note
+            (insert "#knowledge-node(id: \"kogs-0001\", taxon: \"curriculum:authority\")\n"))
+          (cl-letf (((symbol-function 'heurigraph--call-output)
+                     (lambda (_args)
+                       (cons 0 (format "{\"path\":%S}" note))))
+                    ((symbol-function 'heurigraph--root) (lambda () root))
+                    ((symbol-function 'heurigraph-lsp-refresh-if-active)
+                     (lambda () (push 'refresh events) t))
+                    ((symbol-function 'find-file)
+                     (lambda (path) (push (list 'visit path) events))))
+            (heurigraph-new
+             "International Baccalaureate Organization"
+             "kogs-0001"
+             "curriculum:authority"
+             nil
+             "")
+            (should
+             (equal (nreverse events)
+                    (list 'refresh (list 'visit note))))))
+      (delete-directory root t))))
+
+(ert-deftest heurigraph-read-optional-subject-allows-none ()
+  (cl-letf (((symbol-function 'heurigraph--ontology-candidates)
+             (lambda (&rest _args)
+               '(("Mathematics — math:mathematics"
+                  (id . "math:mathematics")))))
+            ((symbol-function 'completing-read)
+             (lambda (_prompt _collection _predicate _require-match
+                      _initial-input _history default)
+               default)))
+    (should-not
+     (heurigraph--read-optional-subject
+      "Subject (optional): " heurigraph-subjects nil))
+    (should
+     (equal
+      (heurigraph--read-optional-subject
+       "Subject (optional): " heurigraph-subjects
+       "math:mathematics")
+      "math:mathematics"))))
 
 (ert-deftest heurigraph-public-toggle-round-trips-tree-metadata ()
   (with-temp-buffer
@@ -141,6 +451,41 @@
     (should (string-match-p "public: false" (buffer-string)))
     (should (string-match-p "title: \"Journal\"" (buffer-string)))
     (should (= (how-many "public:" (point-min) (point-max)) 1))))
+
+(ert-deftest heurigraph-public-toggle-ignores-comments-strings-and-content ()
+  (with-temp-buffer
+    (insert (concat
+             "// #note-meta(public: true)\n"
+             "#let sample = \"#knowledge-node(public: true)\"\n"
+             "[#note-meta(public: true)]\n"
+             "#knowledge-node(id: \"mho-0001\", public: false)\n"))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _args) t)))
+      (heurigraph-toggle-public))
+    (should (= (how-many "public: true" (point-min) (point-max)) 4))
+    (should-not (string-match-p
+                 "#knowledge-node(id: \"mho-0001\", public: false)"
+                 (buffer-string)))))
+
+(ert-deftest heurigraph-public-toggle-edits-only-the-top-level-field ()
+  (with-temp-buffer
+    (insert (concat
+             "#knowledge-node(\n"
+             "  details: (public: false,),\n"
+             "  body: [public: false],\n"
+             "  // legacy public: false\n"
+             "  public: true,\n"
+             ")\n"))
+    (heurigraph-toggle-public)
+    (should (string-match-p "  public: false," (buffer-string)))
+    (should (= (how-many "public: false" (point-min) (point-max)) 4))))
+
+(ert-deftest heurigraph-public-toggle-rejects-duplicate-or-non-boolean-fields ()
+  (dolist (body '("#knowledge-node(public: true, public: false)"
+                  "#knowledge-node(public: \"yes\")"))
+    (with-temp-buffer
+      (insert body)
+      (should-error (heurigraph-toggle-public) :type 'user-error)
+      (should (equal (buffer-string) body)))))
 
 (ert-deftest heurigraph-add-subjects-appends-without-duplicates ()
   (with-temp-buffer
@@ -244,6 +589,31 @@
                      (("book" "build" "sample" "--profile" "compact")
                       "*heurigraph-book-build*"))))))
 
+(ert-deftest heurigraph-site-build-commands-run-asynchronously ()
+  (let (calls)
+    (cl-letf (((symbol-function 'heurigraph--compile)
+               (lambda (args buffer)
+                 (push (list args buffer) calls))))
+      (heurigraph-build)
+      (heurigraph-build-all))
+    (should
+     (equal (nreverse calls)
+            '((("build" "--web") "*heurigraph-build*")
+              (("build" "--web" "--pdf")
+               "*heurigraph-build-all*"))))))
+
+(ert-deftest heurigraph-manuscript-build-forwards-profile-and-force ()
+  (let (call)
+    (cl-letf (((symbol-function 'heurigraph--compile)
+               (lambda (args buffer)
+                 (setq call (list args buffer)))))
+      (heurigraph-manuscript-build "sample" "release" t))
+    (should
+     (equal call
+            '(("manuscript" "build" "sample"
+               "--profile" "release" "--force")
+              "*heurigraph-manuscript-build*")))))
+
 (ert-deftest heurigraph-book-preview-opens-reported-output ()
   (let* ((root (make-temp-file "heurigraph-preview-test-" t))
          (pdf (expand-file-name "build/books/sample-teacher.pdf" root))
@@ -277,10 +647,95 @@
       "schema = 3\n[book]\nid = \"sample\"\ntitle = \"Sample\"\n"
     (let ((note (expand-file-name "notes/a-0001.typ" root))
           (manifest (expand-file-name "collections/sample.toml" root))
+          (manuscript
+           (expand-file-name "manuscripts/sample/manuscript.toml" root))
           (outside (expand-file-name "elsewhere.toml" root)))
+      (make-directory (file-name-directory manuscript) t)
+      (with-temp-file manuscript (insert "[manuscript]\n"))
       (should (heurigraph-lsp--project-p note 'typst-mode))
       (should (heurigraph-lsp--project-p manifest 'toml-mode))
+      (should (heurigraph-lsp--project-p manuscript 'toml-ts-mode))
       (should-not (heurigraph-lsp--project-p outside 'toml-mode)))))
+
+(ert-deftest heurigraph-eglot-enable-registers-only-typst-modes ()
+  (require 'eglot)
+  (heurigraph-test--with-project
+      "schema = 3\n[book]\nid = \"sample\"\ntitle = \"Sample\"\n"
+    (let ((note (expand-file-name "notes/a-0001.typ" root))
+          (server (list 'heurigraph-test-server))
+          (eglot-server-programs nil)
+          (heurigraph-executable "heurigraph"))
+      (make-directory (file-name-directory note) t)
+      (with-temp-file note (insert "#knowledge-node()\n"))
+      (with-temp-buffer
+        (setq buffer-file-name note
+              default-directory root
+              major-mode 'typst-ts-mode)
+        (cl-letf (((symbol-function 'executable-find)
+                   (lambda (_name) "/usr/local/bin/heurigraph"))
+                  ((symbol-function 'eglot-managed-p) (lambda () nil))
+                  ((symbol-function 'eglot-ensure) #'ignore)
+                  ((symbol-function 'eglot-current-server) (lambda () server)))
+          (heurigraph-eglot-enable)
+          (should (local-variable-p 'eglot-server-programs))
+          (should (equal (caar eglot-server-programs)
+                         '(typst-ts-mode typst-mode)))
+          (should (eq heurigraph-eglot--server server)))))))
+
+(ert-deftest heurigraph-eglot-status-rejects-a-stale-server-marker ()
+  (require 'eglot)
+  (with-temp-buffer
+    (let ((selected (list 'selected))
+          (current (list 'current)))
+      (setq-local heurigraph-eglot--server selected)
+      (cl-letf (((symbol-function 'eglot-current-server)
+                 (lambda () current)))
+        (should-not (heurigraph-lsp--eglot-server-active-p)))
+      (cl-letf (((symbol-function 'eglot-current-server)
+                 (lambda () selected)))
+        (should (heurigraph-lsp--eglot-server-active-p))))))
+
+(ert-deftest heurigraph-lsp-ensure-keeps-tinymist-and-heurigraph-alive ()
+  (with-temp-buffer
+    (setq major-mode 'typst-ts-mode)
+    (setq-local lsp-enabled-clients '(other-client))
+    (setq-local lsp-keep-workspace-alive nil)
+    (let (registered
+          deferred)
+      (cl-letf (((symbol-function 'require)
+                 (lambda (feature &rest _args)
+                   (memq feature '(lsp-mode lsp-typst))))
+                ((symbol-function 'heurigraph-lsp-register-lsp-mode)
+                 (lambda () (setq registered t)))
+                ((symbol-function 'lsp-deferred)
+                 (lambda () (setq deferred t))))
+        (should (heurigraph-lsp-ensure))
+        (should registered)
+        (should deferred)
+        (should lsp-keep-workspace-alive)
+        (should (equal lsp-enabled-clients
+                       '(tinymist heurigraph other-client)))))))
+
+(ert-deftest heurigraph-lsp-refresh-targets-the-heurigraph-workspace ()
+  (with-temp-buffer
+    (setq-local lsp-mode t)
+    (let ((workspace 'heurigraph-workspace)
+          sent-to
+          (original-featurep (symbol-function 'featurep)))
+      (cl-letf (((symbol-function 'featurep)
+                 (lambda (feature)
+                   (or (eq feature 'lsp-mode)
+                       (funcall original-featurep feature))))
+                ((symbol-function 'heurigraph-lsp--workspace-by-server-id)
+                 (lambda (server-id)
+                   (and (eq server-id 'heurigraph) workspace)))
+                ((symbol-function 'lsp-send-execute-command)
+                 (lambda (command arguments)
+                   (setq sent-to
+                         (list lsp--cur-workspace command arguments)))))
+        (should (heurigraph-lsp-refresh-if-active))
+        (should (equal sent-to
+                       '(heurigraph-workspace "heurigraph.refresh" [])))))))
 
 (ert-deftest heurigraph-rename-id-plan-parses-cli-report ()
   (let (captured)
@@ -446,6 +901,8 @@
               #'heurigraph-new))
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "R"))
               #'heurigraph-rename-id))
+  (should (eq (lookup-key heurigraph-doom-leader-map (kbd "N"))
+              #'heurigraph-rename-file-from-title))
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "L"))
               #'heurigraph-lsp-start))
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "c"))
@@ -459,7 +916,20 @@
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "i"))
               #'heurigraph-insert-diagram))
   (should (eq (lookup-key heurigraph-doom-leader-map (kbd "M"))
-              #'heurigraph-insert-image)))
+              #'heurigraph-insert-image))
+  (should (eq (lookup-key heurigraph-doom-leader-map (kbd "?"))
+              #'heurigraph-ai-workflow))
+  (should (eq (lookup-key heurigraph-doom-leader-map (kbd "Q"))
+              #'heurigraph-insert-rights)))
+
+(ert-deftest heurigraph-education-map-keeps-domain-and-core-commands-distinct ()
+  (should-not (lookup-key heurigraph-note-mode-map (kbd "C-c h H")))
+  (should (eq (lookup-key heurigraph-education-note-mode-map (kbd "C-c h H"))
+              #'heurigraph-insert-assessment-component-data))
+  (should (eq (lookup-key heurigraph-note-mode-map (kbd "C-c h ?"))
+              #'heurigraph-ai-workflow))
+  (should (eq (lookup-key heurigraph-note-mode-map (kbd "C-c h C"))
+              #'heurigraph-book-find-containing-tree)))
 
 (ert-deftest heurigraph-weeknote-forwards-manual-iso-year-and-week ()
   (let (captured)
@@ -468,7 +938,7 @@
       (heurigraph-new-weeknote 2026 7)
       (should
        (equal captured
-              '("Weeknotes 2026-W07" "weeknote" ""
+              '("Weeknotes 2026-W07" "weeknote"
                 ("--year" "2026" "--week" "7")))))))
 
 (ert-deftest heurigraph-id-at-file-supports-tree-and-weeknote-ids ()
@@ -477,6 +947,72 @@
     (should (equal (heurigraph--id-at-file) "mho-0001"))
     (setq buffer-file-name "/tmp/2026-W07--weeknotes.typ")
     (should (equal (heurigraph--id-at-file) "2026-W07"))))
+
+(ert-deftest heurigraph-filename-slug-matches-cli-rules ()
+  (should
+   (equal (heurigraph--filename-slug
+           "AA A1.03 (FA2029) — Sum of an Arithmetic Sequence")
+          "aa-a1-03-fa2029-sum-of-an-arithmetic-sequence"))
+  (should (equal (heurigraph--filename-slug "  Difference of Squares!  ")
+                 "difference-of-squares")))
+
+(ert-deftest heurigraph-renames-current-file-from-knowledge-node-title ()
+  (let* ((root (make-temp-file "heurigraph-title-rename-" t))
+         (old-path
+          (expand-file-name "kogs-000G--a1-03.typ" root))
+         (new-path
+          (expand-file-name
+           "kogs-000G--aa-a1-03-fa2029-sum-of-an-arithmetic-sequence.typ"
+           root))
+         buffer)
+    (unwind-protect
+        (progn
+          (with-temp-file old-path
+            (insert
+             "#knowledge-node(\n"
+             "  id: \"kogs-000G\",\n"
+             "  title: \"AA A1.03 (FA2029) — Sum of an Arithmetic Sequence\",\n"
+             "  taxon: \"ibdp:learning-statement\",\n"
+             ")\n"))
+          (setq buffer (find-file-noselect old-path))
+          (with-current-buffer buffer
+            (cl-letf (((symbol-function 'yes-or-no-p)
+                       (lambda (&rest _args) t))
+                      ((symbol-function 'heurigraph--refresh-active-lsp)
+                       #'ignore))
+              (heurigraph-rename-file-from-title))
+            (should (string-equal buffer-file-name new-path))
+            (should-not (buffer-modified-p)))
+          (should-not (file-exists-p old-path))
+          (should (file-regular-p new-path)))
+      (when (buffer-live-p buffer)
+        (kill-buffer buffer))
+      (delete-directory root t))))
+
+(ert-deftest heurigraph-title-rename-refuses-an-existing-destination ()
+  (let* ((root (make-temp-file "heurigraph-title-collision-" t))
+         (old-path (expand-file-name "kogs-000G--old.typ" root))
+         (new-path (expand-file-name "kogs-000G--new-title.typ" root))
+         buffer)
+    (unwind-protect
+        (progn
+          (with-temp-file old-path
+            (insert
+             "#knowledge-node(\n"
+             "  id: \"kogs-000G\",\n"
+             "  title: \"New Title\",\n"
+             "  taxon: \"ibdp:learning-statement\",\n"
+             ")\n"))
+          (with-temp-file new-path (insert "existing\n"))
+          (setq buffer (find-file-noselect old-path))
+          (with-current-buffer buffer
+            (should-error (heurigraph-rename-file-from-title)
+                          :type 'user-error))
+          (should (file-regular-p old-path))
+          (should (file-regular-p new-path)))
+      (when (buffer-live-p buffer)
+        (kill-buffer buffer))
+      (delete-directory root t))))
 
 (ert-deftest heurigraph-next-id-uses-structured-process-call ()
   (let (captured)
@@ -487,6 +1023,120 @@
       (should (equal (heurigraph-next-id) "Next id: mho-0042"))
       (should (equal captured '("next-id"))))))
 
+(ert-deftest heurigraph-mcp-args-grant-only-the-exact-project-root ()
+  (heurigraph-test--with-project ""
+    (should
+     (equal (heurigraph--mcp-args)
+            (list "mcp" "serve" "--stdio" "--root"
+                  (directory-file-name (file-truename root)))))))
+
+(ert-deftest heurigraph-mcp-inspect-reports-the-proposal-aware-authority ()
+  (heurigraph-test--with-project ""
+    (let (captured shown message)
+      (cl-letf (((symbol-function 'heurigraph--call-output)
+                 (lambda (args)
+                   (setq captured args)
+                   (cons 0
+                         "{\"server\":{\"version\":\"3.5.3\",\"canonical_sources_read_only\":true,\"proposal_queue_write\":true}}")))
+                ((symbol-function 'heurigraph--show-command-output)
+                 (lambda (&rest args) (setq shown args)))
+                ((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (setq message (apply #'format format-string args)))))
+        (heurigraph-mcp-inspect)
+        (should
+         (equal captured
+                (list "mcp" "inspect" "--root"
+                      (directory-file-name (file-truename root)) "--json")))
+        (should shown)
+        (should (string-match-p "canonical sources read-only" message))
+        (should (string-match-p "proposal queues append-only writable" message))))))
+
+(ert-deftest heurigraph-mcp-inspection-rejects-malformed-capabilities ()
+  (cl-letf (((symbol-function 'heurigraph--call-output)
+             (lambda (_args) (cons 0 "{\"schema\":3}"))))
+    (should-error (heurigraph--mcp-inspection) :type 'user-error)))
+
+(ert-deftest heurigraph-ai-workflow-dispatches-bounded-actions ()
+  (let (called)
+    (cl-letf (((symbol-function 'heurigraph-mcp-inspect)
+               (lambda () (setq called 'inspect)))
+              ((symbol-function 'heurigraph-review-center)
+               (lambda () (setq called 'review)))
+              ((symbol-function 'heurigraph-suggest-list)
+               (lambda (&rest _args) (setq called 'suggestions)))
+              ((symbol-function 'heurigraph-validate)
+               (lambda () (setq called 'validate))))
+      (heurigraph-ai-workflow "Inspect connector authority")
+      (should (eq called 'inspect))
+      (heurigraph-ai-workflow "Open proposal review center")
+      (should (eq called 'review))
+      (heurigraph-ai-workflow "Review semantic suggestions")
+      (should (eq called 'suggestions))
+      (heurigraph-ai-workflow "Validate forest")
+      (should (eq called 'validate)))))
+
+(ert-deftest heurigraph-review-center-opens-the-structured-cli-path ()
+  (let* ((root (make-temp-file "heurigraph-review-center-" t))
+         (page (expand-file-name "build/review/index.html" root))
+         opened)
+    (unwind-protect
+        (progn
+          (make-directory (file-name-directory page) t)
+          (with-temp-file page (insert "<!doctype html>"))
+          (cl-letf (((symbol-function 'heurigraph--call-output)
+                     (lambda (args)
+                       (should (equal args '("review" "build" "--json")))
+                       (cons 0 (format "{\"path\":%S}" page))))
+                    ((symbol-function 'browse-url-of-file)
+                     (lambda (path) (setq opened path))))
+            (heurigraph-review-center)
+            (should (equal opened page))))
+      (delete-directory root t))))
+
+(ert-deftest heurigraph-mcp-configuration-uses-absolute-executable-and-root ()
+  (heurigraph-test--with-project ""
+    (let (copied)
+      (cl-letf (((symbol-function 'heurigraph--mcp-command)
+                 (lambda () "/opt/heurigraph/bin/heurigraph"))
+                ((symbol-function 'kill-new)
+                 (lambda (value) (setq copied value))))
+        (heurigraph-mcp-copy-configuration)
+        (let* ((configuration
+                (json-parse-string copied :object-type 'alist :array-type 'list))
+               (servers (alist-get 'mcpServers configuration))
+               (server (alist-get 'heurigraph servers)))
+          (should
+           (equal (alist-get 'command server)
+                  "/opt/heurigraph/bin/heurigraph"))
+          (should
+           (equal (alist-get 'args server)
+                  (list "mcp" "serve" "--stdio" "--root"
+                        (directory-file-name (file-truename root))))))))))
+
+(ert-deftest heurigraph-mcp-interactive-configuration-confirms-authority ()
+  (heurigraph-test--with-project ""
+    (let (inspected prompt copied)
+      (cl-letf (((symbol-function 'heurigraph--mcp-inspection)
+                 (lambda (&optional _display-output)
+                   (setq inspected t)
+                   '((server
+                      (version . "3.5.3")
+                      (canonical_sources_read_only . t)
+                      (proposal_queue_write . t)))))
+                ((symbol-function 'called-interactively-p) (lambda (&rest _args) t))
+                ((symbol-function 'heurigraph--mcp-command)
+                 (lambda () "/opt/heurigraph/bin/heurigraph"))
+                ((symbol-function 'yes-or-no-p)
+                 (lambda (question) (setq prompt question) t))
+                ((symbol-function 'kill-new)
+                 (lambda (value) (setq copied value))))
+        (call-interactively #'heurigraph-mcp-copy-configuration)
+        (should inspected)
+        (should copied)
+        (should (string-match-p "canonical sources read-only" prompt))
+        (should (string-match-p "proposal queues append-only writable" prompt))))))
+
 (ert-deftest heurigraph-book-rows-reports-invalid-json ()
   (cl-letf (((symbol-function 'heurigraph--call-output)
              (lambda (_args) (cons 0 "not json"))))
@@ -496,6 +1146,58 @@
   (cl-letf (((symbol-function 'heurigraph--call-output)
              (lambda (_args) (cons 0 "not json"))))
     (should-error (heurigraph--nodes) :type 'user-error)))
+
+(ert-deftest heurigraph-new-title-allows-free-input-with-fuzzy-completion ()
+  (let (seen-styles seen-require-match)
+    (cl-letf (((symbol-function 'heurigraph--node-candidates)
+               (lambda (&optional _kind)
+                 '(("Null Factor Law — mho-0001 [math:law]"
+                    (id . "mho-0001")
+                    (title . "Null Factor Law")
+                    (taxon . "math:law")))))
+              ((symbol-function 'completing-read)
+               (lambda (_prompt _collection _predicate require-match
+                        &rest _args)
+                 (setq seen-styles completion-styles
+                       seen-require-match require-match)
+                 "  Arithmetic Sequences  ")))
+      (should
+       (equal (heurigraph--read-new-node-title)
+              "Arithmetic Sequences"))
+      (should (equal seen-styles '(flex basic)))
+      (should-not seen-require-match))))
+
+(ert-deftest heurigraph-new-title-confirms-an-existing-title ()
+  (let* ((node '((id . "mho-0001")
+                 (title . "Null Factor Law")
+                 (taxon . "math:law")))
+         (candidate (cons "Null Factor Law — mho-0001 [math:law]" node))
+         confirmation)
+    (cl-letf (((symbol-function 'heurigraph--node-candidates)
+               (lambda (&optional _kind) (list candidate)))
+              ((symbol-function 'completing-read)
+               (lambda (&rest _args) (car candidate)))
+              ((symbol-function 'yes-or-no-p)
+               (lambda (prompt)
+                 (setq confirmation prompt)
+                 t)))
+      (should
+       (equal (heurigraph--read-new-node-title) "Null Factor Law"))
+      (should (string-match-p "mho-0001, math:law" confirmation)))))
+
+(ert-deftest heurigraph-new-title-can-refuse-a-case-insensitive-duplicate ()
+  (let* ((node '((id . "mho-0001")
+                 (title . "Null Factor Law")
+                 (taxon . "math:law")))
+         (candidate (cons "Null Factor Law — mho-0001 [math:law]" node)))
+    (cl-letf (((symbol-function 'heurigraph--node-candidates)
+               (lambda (&optional _kind) (list candidate)))
+              ((symbol-function 'completing-read)
+               (lambda (&rest _args) "null factor law"))
+              ((symbol-function 'yes-or-no-p)
+               (lambda (_prompt) nil)))
+      (should-error (heurigraph--read-new-node-title)
+                    :type 'user-error))))
 
 (ert-deftest heurigraph-browser-opens-only-after-server-is-ready ()
   (let (opened probe-deleted scheduled)
@@ -545,7 +1247,25 @@
 (ert-deftest heurigraph-insert-image-resolves-a-managed-id-to-its-path ()
   (with-temp-buffer
     (heurigraph-insert-image "img-000A" "images/img-000A.png")
-    (should (equal (buffer-string) "#image(\"/images/img-000A.png\")"))))
+    (should
+     (equal
+      (buffer-string)
+      "#image(\"/images/img-000A.png\", alt: none)"))))
+
+(ert-deftest heurigraph-insert-image-carries-the-use-site-accessibility-choice ()
+  (with-temp-buffer
+    (heurigraph-insert-image
+     "img-000A" "images/img-000A.png" "A plot crossing at two points")
+    (should
+     (equal
+      (buffer-string)
+      "#image(\"/images/img-000A.png\", alt: \"A plot crossing at two points\")")))
+  (with-temp-buffer
+    (heurigraph-insert-image "img-000A" "images/img-000A.png" "")
+    (should
+     (equal
+      (buffer-string)
+      "#image(\"/images/img-000A.png\", alt: \"\")"))))
 
 (ert-deftest heurigraph-import-image-uses-structured-cli-json ()
   (let (captured)
@@ -579,7 +1299,10 @@
            buffer)
       (make-directory directory t)
       (with-temp-file source (insert "image"))
-      (setq buffer (find-file-noselect source))
+      ;; Avoid asking a headless batch display to initialize image-mode; this
+      ;; test exercises buffer retargeting, not image rendering.
+      (let ((auto-mode-alist nil))
+        (setq buffer (find-file-noselect source)))
       (unwind-protect
           (cl-letf (((symbol-function 'heurigraph--call-output)
                      (lambda (_args)
@@ -651,16 +1374,60 @@
      "  stage: \"7-9\",\n"
      ")"))))
 
+(ert-deftest heurigraph-format-assertion-escapes-external-identities ()
+  (should
+   (equal (heurigraph--format-assertion "external:\"kind" "urn:\\target" nil)
+          "#rel(\"external:\\\"kind\", \"urn:\\\\target\")")))
+
+(ert-deftest heurigraph-reads-required-and-selected-optional-assertion-context ()
+  (let (prompts)
+    (cl-letf (((symbol-function 'completing-read-multiple)
+               (lambda (&rest _args) '("stage")))
+              ((symbol-function 'heurigraph--read-assertion-context-value)
+               (lambda (field required)
+                 (push (cons field required) prompts)
+                 (pcase field
+                   ("framework" "kogs-0004")
+                   ("stage" "kogs-0006")))))
+      (should
+       (equal
+        (heurigraph--read-assertion-context
+         '((required_context . ("framework"))))
+        '(("framework" . "kogs-0004")
+          ("stage" . "kogs-0006"))))
+      (should (equal (nreverse prompts)
+                     '(("framework" . t) ("stage")))))))
+
+(ert-deftest heurigraph-context-node-completion-filters-frameworks-and-stages ()
+  (cl-letf (((symbol-function 'heurigraph--node-candidates)
+             (lambda (&optional _kind)
+               '(("Framework" (id . "kogs-0004")
+                  (taxon . "curriculum:framework"))
+                 ("AA HL" (id . "kogs-0006")
+                  (taxon . "curriculum:course"))
+                 ("Algebra" (id . "kogs-0010")
+                  (taxon . "ibdp:topic"))))))
+    (should
+     (equal
+      (mapcar (lambda (candidate) (alist-get 'id (cdr candidate)))
+              (heurigraph--assertion-context-node-candidates "framework"))
+      '("kogs-0004")))
+    (should
+     (equal
+      (mapcar (lambda (candidate) (alist-get 'id (cdr candidate)))
+              (heurigraph--assertion-context-node-candidates "stage"))
+      '("kogs-0006")))))
+
 (ert-deftest heurigraph-assertion-target-allows-registered-external-identities ()
   (cl-letf (((symbol-function 'heurigraph--node-candidates)
-             (lambda (&optional _kind) nil))
+            (lambda (&optional _kind) nil))
             ((symbol-function 'completing-read)
-             (lambda (&rest _args) "Mathlib.Algebra.Group.Basic")))
+             (lambda (&rest _args) "External.Algebra.Group.Basic")))
     (should
      (equal (alist-get 'id
                        (heurigraph--read-assertion-target
                         '((external_targets . t))))
-            "Mathlib.Algebra.Group.Basic"))))
+            "External.Algebra.Group.Basic"))))
 
 (ert-deftest heurigraph-inserts-ontology-subject-skeleton ()
   (with-temp-buffer

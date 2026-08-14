@@ -1,9 +1,12 @@
 ;;; heurigraph.el --- Authoring layer for Heurigraph  -*- lexical-binding: t; -*-
 
-;; Author: Heurigraph
-;; Version: 1.16.3
+;; Author: Mark Olson <41911657+mholson@users.noreply.github.com>
+;; Maintainer: Mark Olson <41911657+mholson@users.noreply.github.com>
+;; Version: 4.2.0
 ;; Keywords: tools, tex, outlines
 ;; Package-Requires: ((emacs "30.2"))
+;; URL: https://github.com/mholson/Heurigraph
+;; SPDX-License-Identifier: MIT OR Apache-2.0
 
 ;;; Commentary:
 
@@ -40,13 +43,58 @@
 
 (defcustom heurigraph-notes-directory nil
   "Root of the Heurigraph project (the directory containing heurigraph.toml).
-When nil, the current `default-directory' / project root is used."
+When nil, use the nearest ancestor containing heurigraph.toml, then the editor
+project root or current `default-directory' as a fallback."
   :type '(choice (const :tag "Auto-detect" nil) directory)
   :group 'heurigraph)
 
-(defcustom heurigraph-default-subject "math:mathematics"
-  "Default ontology subject passed to \\[heurigraph-new]."
+(defcustom heurigraph-output-display 'auto
+  "How synchronous Heurigraph command output is presented.
+The full output is always retained in the command's output buffer.
+
+With `auto', successful output that fits within
+`heurigraph-minibuffer-output-max-length' is shown as one compact echo-area
+message; longer output opens the output buffer.  With `minibuffer', every
+successful command uses a compact, possibly truncated echo-area message.
+With `buffer', every command opens its output buffer, preserving the behaviour
+from Heurigraph 2.0.4 and earlier.
+
+Failures always open their output buffer so diagnostics remain complete.
+Asynchronous build commands continue to use compilation buffers independently
+of this setting."
+  :type '(choice
+          (const :tag "Automatic" auto)
+          (const :tag "Minibuffer for successful commands" minibuffer)
+          (const :tag "Always show output buffer" buffer))
+  :group 'heurigraph)
+
+(defcustom heurigraph-minibuffer-output-max-length 160
+  "Maximum width of a compact Heurigraph echo-area message.
+In `auto' output mode, successful output wider than this opens its output
+buffer.  In `minibuffer' mode, output wider than this is truncated in the
+echo area; the complete text remains available in the output buffer."
+  :type 'natnum
+  :group 'heurigraph)
+
+(defcustom heurigraph-default-subject nil
+  "Default ontology subject offered by \\[heurigraph-new]."
   :type '(choice (const :tag "None" nil) string)
+  :group 'heurigraph)
+
+(defcustom heurigraph-subjectless-taxon-prefixes '()
+  "Taxon prefixes for which \\[heurigraph-new] should not offer a default subject.
+Domain extensions may set this buffer-locally; the resolved ontology remains
+authoritative."
+  :type '(repeat string)
+  :group 'heurigraph)
+
+(defcustom heurigraph-new-public-by-default nil
+  "When non-nil, create new knowledge nodes with `public: true'.
+This affects only `heurigraph-new'; it passes `--public' to the Heurigraph CLI.
+Keep the default nil when new material should require an explicit publication
+decision."
+  :type 'boolean
+  :safe #'booleanp
   :group 'heurigraph)
 
 (defcustom heurigraph-ontology-auto-refresh t
@@ -81,60 +129,57 @@ An empty caption omits the `caption' parameter."
   "Publication profile selected for the current collection buffer.")
 
 (defvar heurigraph--last-book-output nil
-  "Plist describing the most recent book preview (:book :profile :path).")
+  "Plist describing the latest book preview (:root :book :profile :path).")
 
 ;; Used only for completion prompts; the ontology registry remains authoritative.
-(defcustom heurigraph-taxons
-  '("math:concept" "math:object" "math:structure" "math:operation"
-    "math:relation" "math:property" "math:definition" "math:notation"
-    "math:statement" "math:theorem" "math:lemma" "math:proposition"
-    "math:corollary" "math:law" "math:identity" "math:proof"
-    "math:counterexample" "math:method" "math:algorithm"
-    "math:transformation" "edu:learning-objective" "edu:task"
-    "edu:exercise" "edu:problem" "edu:assessment-item"
-    "edu:worked-example" "edu:solution" "edu:explanation"
-    "edu:representation" "edu:misconception" "edu:error-pattern"
-    "edu:learning-strategy" "edu:teaching-strategy"
-    "edu:instructional-move" "edu:diagnostic" "edu:rubric-criterion"
-    "curriculum:framework" "curriculum:standard" "curriculum:strand"
-    "curriculum:course" "curriculum:stage" "curriculum:objective"
-    "curriculum:competency" "curriculum:sequence" "curriculum:unit")
+(defcustom heurigraph-taxons '()
   "Fallback taxon ids used when no resolved project ontology is available."
   :type '(repeat string)
   :group 'heurigraph)
 
 ;;; Internals ----------------------------------------------------------------
 
-(defcustom heurigraph-subjects
-  '("math:mathematics" "math:algebra" "math:equations" "math:operations"
-    "math:number" "math:factorisation" "math:quadratics"
-    "math:zero-products")
+(defcustom heurigraph-subjects '()
   "Fallback subject ids used when no resolved project ontology is available."
   :type '(repeat string)
   :group 'heurigraph)
 
-(defcustom heurigraph-predicate-types
-  '("math:depends_on" "math:uses" "math:defines" "math:proves"
-    "math:refutes" "math:generalizes" "math:specializes"
-    "math:equivalent_to" "math:transforms_to" "math:has_example"
-    "math:has_counterexample" "math:enables_method"
-    "edu:has_learning_prerequisite" "edu:teaches" "edu:illustrates"
-    "edu:explains" "edu:addresses" "edu:about" "edu:elicits"
-    "edu:scaffolds" "edu:strategy_for" "edu:assesses"
-    "edu:solution_to" "curriculum:aligns_to" "curriculum:part_of"
-    "curriculum:precedes" "formal:formalized_as" "document:mentions"
-    "document:transcludes")
+(defcustom heurigraph-predicate-types '()
   "Fallback predicate ids used when no resolved project ontology is available."
   :type '(repeat string)
   :group 'heurigraph)
 
+(defcustom heurigraph-publication-reference-roles
+  '("appears-in" "adapted-from" "reproduced-in" "referenced-by" "inspired-by")
+  "Controlled role values accepted by publication-reference metadata."
+  :type '(repeat string)
+  :group 'heurigraph)
+
+(defcustom heurigraph-assertion-context-fields
+  '("framework" "stage" "audience" "jurisdiction" "language")
+  "Context fields offered by `heurigraph-insert-assertion'.
+Fields required by the selected ontology predicate are always prompted.
+Any remaining fields may be selected interactively and left absent."
+  :type '(repeat string)
+  :group 'heurigraph)
+
+(defvar heurigraph-assertion-context-candidate-filter-functions nil
+  "Functions that refine local context candidates for a domain module.
+Each function receives FIELD and CANDIDATES and returns the remaining list.")
+
 (defun heurigraph--root ()
   "Return the Heurigraph project root as an absolute directory."
-  (expand-file-name
-   (or heurigraph-notes-directory
-       (when-let ((pr (project-current)))
-         (project-root pr))
-       default-directory)))
+  (let* ((start (or (and buffer-file-name
+                         (file-name-directory buffer-file-name))
+                    default-directory))
+         (forest-root (and start
+                           (locate-dominating-file start "heurigraph.toml"))))
+    (expand-file-name
+     (or heurigraph-notes-directory
+         forest-root
+         (when-let ((pr (project-current)))
+           (project-root pr))
+         default-directory))))
 
 (defun heurigraph--require-executable ()
   "Return `heurigraph-executable', or raise an actionable `user-error'."
@@ -152,9 +197,43 @@ An empty caption omits the `caption' parameter."
        configured))
     configured))
 
+(defun heurigraph--compact-output (output)
+  "Return OUTPUT trimmed and collapsed to one line."
+  (replace-regexp-in-string
+   "[[:space:]\n\r]+" " " (string-trim output)))
+
+(defun heurigraph--output-in-minibuffer-p (code output)
+  "Return non-nil when successful CODE and OUTPUT belong in the echo area."
+  (and (integerp code)
+       (zerop code)
+       (pcase heurigraph-output-display
+         ('minibuffer t)
+         ('auto
+          (<= (string-width (heurigraph--compact-output output))
+              heurigraph-minibuffer-output-max-length))
+         (_ nil))))
+
+(defun heurigraph--minibuffer-summary (args output)
+  "Return a compact status message for command ARGS and OUTPUT."
+  (let* ((command (or (car args) "command"))
+         (compact (heurigraph--compact-output output))
+         (detail (if (string-empty-p compact)
+                     "completed successfully"
+                   (truncate-string-to-width
+                    compact heurigraph-minibuffer-output-max-length
+                    nil nil "…"))))
+    (format "Heurigraph %s: %s" command detail)))
+
+(defun heurigraph--present-output (args buffer code output)
+  "Present Heurigraph ARGS result in BUFFER according to CODE and OUTPUT."
+  (if (heurigraph--output-in-minibuffer-p code output)
+      (message "%s" (heurigraph--minibuffer-summary args output))
+    (display-buffer buffer)))
+
 (defun heurigraph--run (args &optional buffer-name)
   "Run the heurigraph binary with ARGS (a list of strings) in the project root.
-Output goes to BUFFER-NAME (default *heurigraph*).  Returns the exit code."
+Output is retained in BUFFER-NAME (default *heurigraph*) and presented according
+to `heurigraph-output-display'.  Returns the exit code."
   (let ((default-directory (heurigraph--root))
         (executable (heurigraph--require-executable))
         (buf (get-buffer-create (or buffer-name "*heurigraph*"))))
@@ -163,12 +242,16 @@ Output goes to BUFFER-NAME (default *heurigraph*).  Returns the exit code."
       (erase-buffer)
       (insert (format "$ %s %s\n\n"
                       executable (string-join args " "))))
-    (let ((code (apply #'call-process executable nil buf t args)))
+    (let* ((output-start (with-current-buffer buf (point-max)))
+           (code (apply #'call-process executable nil buf t args))
+           (output (with-current-buffer buf
+                     (buffer-substring-no-properties
+                      output-start (point-max)))))
       (with-current-buffer buf
         (goto-char (point-max))
         (insert (format "\n[exit %s]\n" code))
         (special-mode))
-      (display-buffer buf)
+      (heurigraph--present-output args buf code output)
       code)))
 
 (defun heurigraph--call-output (args)
@@ -186,6 +269,13 @@ Output goes to BUFFER-NAME (default *heurigraph*).  Returns the exit code."
     (json-parse-error
      (user-error "Heurigraph returned invalid JSON for %s: %s"
                  description (error-message-string error)))))
+
+(defun heurigraph--refresh-active-lsp ()
+  "Refresh an active Heurigraph LSP workspace after an external CLI write.
+The editor package remains usable without `heurigraph-lsp.el'; in that case
+there is no live in-memory index to refresh."
+  (when (fboundp 'heurigraph-lsp-refresh-if-active)
+    (heurigraph-lsp-refresh-if-active)))
 
 ;;;; Project ontology -------------------------------------------------------
 
@@ -323,6 +413,24 @@ Each candidate maps its display label to the complete resolved ontology item."
   (alist-get 'id
              (heurigraph--read-ontology-item prompt kind fallback default)))
 
+(defun heurigraph--read-optional-subject (prompt fallback &optional default)
+  "Read an optional subject with PROMPT, FALLBACK ids, and DEFAULT.
+Completion includes an explicit choice that returns nil.  When DEFAULT is nil,
+that choice is selected by default."
+  (let* ((none-label "[No subject]")
+         (candidates (heurigraph--ontology-candidates 'subjects fallback))
+         (default-label
+          (or (car (seq-find (lambda (candidate)
+                               (equal (alist-get 'id (cdr candidate)) default))
+                             candidates))
+              none-label))
+         (choice
+          (completing-read prompt
+                           (cons (cons none-label nil) candidates)
+                           nil t nil nil default-label)))
+    (unless (equal choice none-label)
+      (alist-get 'id (cdr (assoc choice candidates))))))
+
 ;;;###autoload
 (defun heurigraph-ontology-refresh ()
   "Validate sources and refresh project-owned ontology completion data.
@@ -444,7 +552,7 @@ separately after schema changes."
            (completing-read-multiple "Implies (comma-separated): " structures nil t)
            (read-string "Description: "))))
   (unless (string-match-p "^[a-z0-9_-]+:[a-z0-9_-]+$" id)
-    (user-error "Structure id must be namespaced, for example math:field"))
+    (user-error "Structure id must be namespaced, for example domain:structure"))
   (heurigraph--ontology-insert-table
    "structures"
    `(("id" ,(format "\"%s\"" (heurigraph--toml-string id)))
@@ -623,26 +731,84 @@ comment is never mistaken for a real value."
               (t (forward-char 1)))))))
       (nreverse literals))))
 
-(defun heurigraph--metadata-call ()
-  "Return (OPEN-END . CALL-END) for the first metadata call, or nil."
+(defun heurigraph--find-top-level-typst-call (regexp)
+  "Return bounds for the first top-level Typst call matching REGEXP.
+The returned pair is (OPEN-END . CALL-END).  Calls in strings, comments,
+content blocks, or another call's arguments are ignored.  REGEXP must match
+through the opening parenthesis."
   (save-excursion
     (goto-char (point-min))
-    (when (re-search-forward "#\\(knowledge-node\\|note-meta\\)(" nil t)
-      (let* ((open-end (point))
-             (call-end (heurigraph--typst-call-end (1- open-end))))
-        (when call-end (cons open-end call-end))))))
+    (let ((state 'code)
+          (block-depth 0)
+          (content-depth 0)
+          (paren-depth 0)
+          result)
+      (while (and (< (point) (point-max)) (not result))
+        (let ((char (char-after))
+              (next (char-after (1+ (point)))))
+          (pcase state
+            ('string
+             (cond
+              ((eq char ?\\) (forward-char (min 2 (- (point-max) (point)))))
+              ((eq char ?\") (setq state 'code) (forward-char 1))
+              (t (forward-char 1))))
+            ('line-comment
+             (when (eq char ?\n) (setq state 'code))
+             (forward-char 1))
+            ('block-comment
+             (cond
+              ((and (eq char ?/) (eq next ?*))
+               (setq block-depth (1+ block-depth))
+               (forward-char 2))
+              ((and (eq char ?*) (eq next ?/))
+               (setq block-depth (1- block-depth))
+               (forward-char 2)
+               (when (zerop block-depth) (setq state 'code)))
+              (t (forward-char 1))))
+            ('code
+             (cond
+              ((and (zerop content-depth) (zerop paren-depth)
+                    (looking-at regexp))
+               (let* ((open-end (match-end 0))
+                      (call-end (heurigraph--typst-call-end (1- open-end))))
+                 (if call-end
+                     (setq result (cons open-end call-end))
+                   (goto-char open-end))))
+              ((and (eq char ?/) (eq next ?/))
+               (setq state 'line-comment)
+               (forward-char 2))
+              ((and (eq char ?/) (eq next ?*))
+               (setq state 'block-comment block-depth 1)
+               (forward-char 2))
+              ((eq char ?\") (setq state 'string) (forward-char 1))
+              ((and (> content-depth 0) (eq char ?\\))
+               (forward-char (min 2 (- (point-max) (point)))))
+              ((eq char ?\[)
+               (setq content-depth (1+ content-depth))
+               (forward-char 1))
+              ((and (eq char ?\]) (> content-depth 0))
+               (setq content-depth (1- content-depth))
+               (forward-char 1))
+              ((and (zerop content-depth) (eq char ?\())
+               (setq paren-depth (1+ paren-depth))
+               (forward-char 1))
+              ((and (zerop content-depth) (eq char ?\)) (> paren-depth 0))
+               (setq paren-depth (1- paren-depth))
+               (forward-char 1))
+              (t (forward-char 1)))))))
+      result)))
+
+(defun heurigraph--metadata-call ()
+  "Return (OPEN-END . CALL-END) for the first metadata call, or nil."
+  (heurigraph--find-top-level-typst-call
+   "#\\(?:knowledge-node\\|note-meta\\)("))
 
 (defun heurigraph--knowledge-node-call ()
   "Return (OPEN-END . CALL-END) for the first knowledge-node call, or nil."
-  (save-excursion
-    (goto-char (point-min))
-    (when (re-search-forward "#knowledge-node(" nil t)
-      (let* ((open-end (point))
-             (call-end (heurigraph--typst-call-end (1- open-end))))
-        (when call-end (cons open-end call-end))))))
+  (heurigraph--find-top-level-typst-call "#knowledge-node("))
 
-(defun heurigraph--metadata-field-value-start (bounds field)
-  "Return the value start for top-level FIELD within metadata BOUNDS.
+(defun heurigraph--metadata-field-value-starts (bounds field)
+  "Collect all top-level FIELD value positions within metadata BOUNDS.
 Strings, content blocks, line comments, nested block comments, and nested
 parenthesized values are skipped while looking for the field name."
   (save-excursion
@@ -652,9 +818,9 @@ parenthesized values are skipped while looking for the field name."
           (state 'code)
           (block-depth 0)
           (field-rx (concat "\\_<" (regexp-quote field)
-                            "\\_>[[:space:]]*:")))
-      (catch 'found
-        (while (< (point) (1- (cdr bounds)))
+                            "\\_>[[:space:]]*:"))
+          starts)
+      (while (< (point) (1- (cdr bounds)))
           (let ((char (char-after))
                 (next (char-after (1+ (point)))))
             (pcase state
@@ -682,7 +848,7 @@ parenthesized values are skipped while looking for the field name."
                       (looking-at field-rx))
                  (goto-char (match-end 0))
                  (skip-chars-forward " \t\r\n" (cdr bounds))
-                 (throw 'found (point)))
+                 (push (point) starts))
                 ((and (eq char ?/) (eq next ?/))
                  (setq state 'line-comment)
                  (forward-char 2))
@@ -705,7 +871,11 @@ parenthesized values are skipped while looking for the field name."
                  (setq depth (1- depth))
                  (forward-char 1))
                 (t (forward-char 1)))))))
-        nil))))
+      (nreverse starts))))
+
+(defun heurigraph--metadata-field-value-start (bounds field)
+  "Return the first value start for top-level FIELD within metadata BOUNDS."
+  (car (heurigraph--metadata-field-value-starts bounds field)))
 
 (defun heurigraph--subject-metadata ()
   "Return a plist describing the current tree's subject metadata.
@@ -808,11 +978,16 @@ Existing subjects are excluded from completion and never duplicated."
 (defun heurigraph--metadata-public-value ()
   "Return the current buffer's explicit publication value, or nil."
   (when-let ((bounds (heurigraph--metadata-call)))
-    (save-excursion
-      (goto-char (car bounds))
-      (when (re-search-forward
-             "public:[[:space:]]*\\(true\\|false\\)" (cdr bounds) t)
-        (string= (match-string-no-properties 1) "true")))))
+    (let ((starts (heurigraph--metadata-field-value-starts bounds "public")))
+      (when (> (length starts) 1)
+        (user-error "Metadata contains duplicate top-level public fields"))
+      (when-let ((start (car starts)))
+        (save-excursion
+          (goto-char start)
+          (cond
+           ((looking-at "true\\_>") t)
+           ((looking-at "false\\_>") nil)
+           (t (user-error "The metadata public field must be true or false"))))))))
 
 ;;;###autoload
 (defun heurigraph-toggle-public ()
@@ -825,65 +1000,81 @@ Publishing requires confirmation; making an item private does not."
       (unless bounds
         (user-error "No #knowledge-node or #note-meta declaration found"))
       (let* ((open-end (car bounds))
-             (call-end (cdr bounds))
-             (match (save-excursion
-                      (goto-char open-end)
-                      (when (re-search-forward
-                             "public:[[:space:]]*\\(true\\|false\\)"
-                             call-end t)
-                        (list (match-string-no-properties 1)
-                              (match-beginning 1)
-                              (match-end 1)))))
-             (current (car match))
+             (starts (heurigraph--metadata-field-value-starts bounds "public")))
+        (when (> (length starts) 1)
+          (user-error "Metadata contains duplicate top-level public fields"))
+        (let* ((start (car starts))
+               (current
+                (when start
+                  (save-excursion
+                    (goto-char start)
+                    (cond
+                     ((looking-at "true\\_>") "true")
+                     ((looking-at "false\\_>") "false")
+                     (t (user-error
+                         "The metadata public field must be true or false"))))))
              (next (if (string= current "true") "false" "true")))
         (when (and (string= next "true")
                    (not (yes-or-no-p "Mark this item PUBLIC for generated publications? ")))
           (user-error "Publication unchanged"))
         (if current
             (progn
-              (delete-region (nth 1 match) (nth 2 match))
-              (goto-char (nth 1 match))
+              (delete-region start (+ start (length current)))
+              (goto-char start)
               (insert next))
           (goto-char open-end)
           (insert (format "\n  public: %s," next)))
         (message "Heurigraph: this item is now %s"
-                 (if (string= next "true") "PUBLIC" "private"))))))
+                 (if (string= next "true") "PUBLIC" "private")))))))
 
 ;;; Commands -----------------------------------------------------------------
 
 ;;;###autoload
-(defun heurigraph-new (title id taxon subject keywords)
+(defun heurigraph-new (title id taxon subject aliases)
   "Create a new note titled TITLE with TAXON.
 Leave ID blank to auto-allocate the next free base-36 id (Forester
 style) from `[ids].default_prefix'; give an explicit id like
-mho-0X4B to choose one — the CLI refuses collisions. SUBJECT and
-KEYWORDS are optional. Delegates to `heurigraph new', then visits the
-created file if it can be located."
+mho-0X4B to choose one—the CLI refuses collisions.  SUBJECT and
+comma-separated ALIASES are optional.  Delegates to `heurigraph new',
+then visits the created file if it can be located."
   (interactive
-   (list (read-string "Title: ")
-         (read-string "Id (blank = auto-allocate): ")
-         (heurigraph--read-ontology-id
-          "Taxon: " 'taxons heurigraph-taxons)
-         (heurigraph--read-ontology-id
-          "Subject: " 'subjects heurigraph-subjects
-          heurigraph-default-subject)
-         (read-string "Keywords (comma-separated): ")))
-  (let ((args (list "new" title "--taxon" taxon)))
+   (let* ((title (heurigraph--read-new-node-title))
+          (id (read-string "Id (blank = auto-allocate): "))
+          (taxon
+           (heurigraph--read-ontology-id
+            "Taxon: " 'taxons heurigraph-taxons))
+          (subject
+           (heurigraph--read-optional-subject
+            "Subject (optional): " heurigraph-subjects
+            (unless (seq-some (lambda (prefix)
+                                (string-prefix-p prefix taxon))
+                              heurigraph-subjectless-taxon-prefixes)
+              heurigraph-default-subject)))
+          (aliases
+           (read-string "Aliases (comma-separated, blank for none): ")))
+     (list title id taxon subject aliases)))
+  (let ((args (list "new" title "--taxon" taxon "--json")))
     (if (and id (not (string-empty-p id)))
         (setq args (append args (list "--id" id))))
     (when (and subject (not (string-empty-p subject)))
       (setq args (append args (list "--subject" subject))))
-    (when (and keywords (not (string-empty-p keywords)))
-      (setq args (append args (list "--keywords" keywords))))
-    (when (zerop (heurigraph--run args))
-      ;; Best-effort open: newest note file matching `<id>--` at the start.
-      (let* ((root (heurigraph--root))
-             (rx (if (and id (not (string-empty-p id)))
-                     (concat "^" (regexp-quote id) "--")
-                   "--"))
-             (hits (directory-files-recursively root (concat rx ".*\\.typ$")))
-             (hit (car (sort hits #'file-newer-than-file-p))))
-        (when hit (find-file hit))))))
+    (when (and aliases (not (string-empty-p (string-trim aliases))))
+      (setq args (append args (list "--aliases" aliases))))
+    (when heurigraph-new-public-by-default
+      (setq args (append args (list "--public"))))
+    (pcase-let* ((`(,code . ,output) (heurigraph--call-output args))
+                 (created (when (zerop code)
+                            (heurigraph--parse-json-output output "new note"))))
+      (unless (zerop code)
+        (user-error "Heurigraph new failed: %s" (string-trim output)))
+      ;; `heurigraph new' writes outside the LSP protocol.  Refresh while the
+      ;; originating note buffer still owns the active workspace, before
+      ;; visiting the newly created file.
+      (heurigraph--refresh-active-lsp)
+      (let ((path (alist-get 'path created)))
+        (unless (and (stringp path) (file-exists-p path))
+          (user-error "Heurigraph reported an invalid created path: %S" path))
+        (find-file path)))))
 
 ;;;###autoload
 (defun heurigraph-next-id ()
@@ -893,7 +1084,7 @@ The namespace comes from `[ids].default_prefix'."
   (pcase-let ((`(,code . ,output)
                (heurigraph--call-output '("next-id"))))
     (unless (zerop code)
-      (user-error "heurigraph next-id failed: %s" (string-trim output)))
+      (user-error "Heurigraph next-id failed: %s" (string-trim output)))
     (message "Next id: %s" (string-trim output))))
 
 ;;;###autoload
@@ -920,12 +1111,12 @@ A non-zero exit is surfaced as an Emacs message."
 
 ;;;###autoload
 (defun heurigraph-build ()
-  "Render the static web site (`heurigraph build --web')."
+  "Render the static web site asynchronously (`heurigraph build --web')."
   (interactive)
-  (heurigraph--run '("build" "--web")))
+  (heurigraph--compile '("build" "--web") "*heurigraph-build*"))
 
-(defvar heurigraph--serve-process nil
-  "Running `heurigraph serve' process, if any.")
+(defvar heurigraph--serve-processes (make-hash-table :test #'equal)
+  "Running `heurigraph serve' processes keyed by canonical project root.")
 
 (defconst heurigraph--server-ready-attempts 50
   "Number of local connection attempts before browser opening is abandoned.")
@@ -957,29 +1148,30 @@ ATTEMPT records how many asynchronous readiness checks have completed."
 Starts `heurigraph serve' (default PORT 8383) as a background process;
 call again with the server running to stop it."
   (interactive)
-  (if (process-live-p heurigraph--serve-process)
+  (let* ((root (file-truename (heurigraph--root)))
+         (running (gethash root heurigraph--serve-processes)))
+  (if (process-live-p running)
       (progn
-        (kill-process heurigraph--serve-process)
-        (setq heurigraph--serve-process nil)
+        (kill-process running)
+        (remhash root heurigraph--serve-processes)
         (message "Heurigraph: server stopped"))
-    (let ((default-directory (heurigraph--root))
+    (let ((default-directory root)
           (executable (heurigraph--require-executable))
-          (port (or port 8383)))
-      (setq heurigraph--serve-process
-            (start-process "heurigraph-serve" "*heurigraph-serve*"
-                           executable
+          (port (or port 8383))
+          process)
+      (setq process
+            (start-process "heurigraph-serve" "*heurigraph-serve*" executable
                            "serve" "--port" (number-to-string port)))
+      (puthash root process heurigraph--serve-processes)
       (heurigraph--browse-when-server-ready
-       heurigraph--serve-process (format "http://127.0.0.1:%d/" port) port)
-      (message "Heurigraph: serving on port %d (M-x heurigraph-serve to stop)" port))))
+       process (format "http://127.0.0.1:%d/" port) port)
+      (message "Heurigraph: serving on port %d (M-x heurigraph-serve to stop)" port)))))
 
 ;;;###autoload
 (defun heurigraph-suggestions ()
   "List pending relation suggestions (`heurigraph suggest list')."
   (interactive)
   (heurigraph--run '("suggest" "list")))
-
-;;;###autoload
 
 ;;;###autoload
 (defun heurigraph-pdf (id)
@@ -1021,7 +1213,7 @@ With point in a note buffer, defaults ID to the id in the file name."
 (defun heurigraph-book-insert-prose-block (content source-p role)
   "Insert a connective prose block.
 CONTENT is inline Typst markup, or a project-relative path when SOURCE-P is
-non-nil. ROLE is optional editorial metadata such as `transition'."
+non-nil.  ROLE is optional editorial metadata such as `transition'."
   (interactive
    (let* ((source-p current-prefix-arg)
           (content (read-string (if source-p "Typst source path: "
@@ -1055,7 +1247,7 @@ non-nil. ROLE is optional editorial metadata such as `transition'."
   (pcase-let ((`(,code . ,output)
                (heurigraph--call-output '("book" "list" "--json"))))
     (unless (zerop code)
-      (user-error "heurigraph book list failed: %s" (string-trim output)))
+      (user-error "Heurigraph book list failed: %s" (string-trim output)))
     (append (heurigraph--parse-json-output output "book list") nil)))
 
 (defun heurigraph--book-id-at-file ()
@@ -1206,7 +1398,8 @@ PROMPT customizes the collection prompt."
     (let ((path (expand-file-name (string-trim (match-string 1 output))
                                   (heurigraph--root))))
       (setq heurigraph--last-book-output
-            (list :book book :profile profile :path path))
+            (list :root (file-truename (heurigraph--root))
+                  :book book :profile profile :path path))
       (unless (file-exists-p path)
         (user-error "Book output does not exist: %s" path))
       (browse-url-of-file path)
@@ -1221,7 +1414,9 @@ PROMPT customizes the collection prompt."
                            (heurigraph--book-output-name book profile))
                    (heurigraph--root)))
          (last-path (plist-get heurigraph--last-book-output :path))
-         (path (if (and (equal (plist-get heurigraph--last-book-output :book) book)
+         (path (if (and (equal (plist-get heurigraph--last-book-output :root)
+                               (file-truename (heurigraph--root)))
+                        (equal (plist-get heurigraph--last-book-output :book) book)
                         (equal (plist-get heurigraph--last-book-output :profile) profile)
                         last-path
                         (file-exists-p last-path))
@@ -1291,12 +1486,13 @@ ID defaults to the current note's stable id."
 
 ;;;###autoload
 (defun heurigraph-build-all ()
-  "Build both the static web site and all PDFs."
+  "Build the static web site and all PDFs asynchronously."
   (interactive)
-  (heurigraph--run '("build" "--web" "--pdf")))
+  (heurigraph--compile '("build" "--web" "--pdf")
+                       "*heurigraph-build-all*"))
 
-(defvar heurigraph--watch-process nil
-  "Running `heurigraph watch' process, if any.")
+(defvar heurigraph--watch-processes (make-hash-table :test #'equal)
+  "Running `heurigraph watch' processes keyed by canonical project root.")
 
 ;;;###autoload
 (defun heurigraph-watch (&optional no-serve port)
@@ -1304,41 +1500,176 @@ ID defaults to the current note's stable id."
 With prefix argument NO-SERVE, run without the local server.  PORT defaults to
 8383.  Calling this command while a watcher is active stops it."
   (interactive "P")
-  (if (process-live-p heurigraph--watch-process)
+  (let* ((root (file-truename (heurigraph--root)))
+         (running (gethash root heurigraph--watch-processes)))
+  (if (process-live-p running)
       (progn
-        (kill-process heurigraph--watch-process)
-        (setq heurigraph--watch-process nil)
+        (kill-process running)
+        (remhash root heurigraph--watch-processes)
         (message "Heurigraph: watcher stopped"))
-    (let* ((default-directory (heurigraph--root))
+    (let* ((default-directory root)
            (executable (heurigraph--require-executable))
            (port (or port 8383))
            (args (append (list "watch" "--port" (number-to-string port))
-                         (when no-serve (list "--no-serve")))))
-      (setq heurigraph--watch-process
-            (apply #'start-process "heurigraph-watch" "*heurigraph-watch*"
-                   executable args))
+                         (when no-serve (list "--no-serve"))))
+           process)
+      (setq process (apply #'start-process "heurigraph-watch" "*heurigraph-watch*"
+                           executable args))
+      (puthash root process heurigraph--watch-processes)
       (unless no-serve
         (heurigraph--browse-when-server-ready
-         heurigraph--watch-process (format "http://127.0.0.1:%d/" port) port))
-      (message "Heurigraph: watching%s" (if no-serve "" (format " on port %d" port))))))
+         process (format "http://127.0.0.1:%d/" port) port))
+      (message "Heurigraph: watching%s" (if no-serve "" (format " on port %d" port)))))))
 
 ;;;###autoload
 (defun heurigraph-open-site ()
   "Open the generated web site index in a browser."
   (interactive)
-  (browse-url (concat "file://" (expand-file-name "build/web/index.html" (heurigraph--root)))))
+  (browse-url-of-file (expand-file-name "build/web/index.html" (heurigraph--root))))
 
 ;;;###autoload
 (defun heurigraph-open-graph-page ()
   "Open the generated interactive graph page in a browser."
   (interactive)
-  (browse-url (concat "file://" (expand-file-name "build/web/graph/index.html" (heurigraph--root)))))
+  (browse-url-of-file
+   (expand-file-name "build/web/graph/index.html" (heurigraph--root))))
 
 ;;;###autoload
 (defun heurigraph-agent-context ()
   "Write build/agent-context.json for LLM/agent workflows."
   (interactive)
   (heurigraph--run '("agent" "context")))
+
+(defun heurigraph--mcp-root ()
+  "Return the exact, canonical forest root granted to an MCP client."
+  (directory-file-name (file-truename (heurigraph--root))))
+
+(defun heurigraph--mcp-command ()
+  "Return the resolved Heurigraph executable for desktop MCP configuration."
+  (let* ((configured (heurigraph--require-executable))
+         (explicit (and (string-match-p "[/\\\\]" configured)
+                        (expand-file-name configured))))
+    (or (executable-find configured) explicit configured)))
+
+(defun heurigraph--mcp-args ()
+  "Return proposal-aware stdio MCP arguments for the current forest."
+  (list "mcp" "serve" "--stdio" "--root" (heurigraph--mcp-root)))
+
+(defun heurigraph--mcp-inspection (&optional display-output)
+  "Return the parsed MCP inspection report for the current forest.
+When DISPLAY-OUTPUT is non-nil, also retain and display the complete report in
+`*heurigraph-mcp*'."
+  (let* ((args (list "mcp" "inspect" "--root" (heurigraph--mcp-root) "--json"))
+         (result (heurigraph--call-output args))
+         (code (car result))
+         (output (cdr result)))
+    (when display-output
+      (heurigraph--show-command-output
+       args output code "*heurigraph-mcp*"))
+    (unless (zerop code)
+      (user-error "Heurigraph MCP inspection failed%s"
+                  (if display-output "; see *heurigraph-mcp*"
+                    (format ": %s" (string-trim output)))))
+    (let ((report (heurigraph--parse-json-output output "MCP inspection")))
+      (unless (and (listp report) (consp (alist-get 'server report)))
+        (user-error "Heurigraph returned an invalid MCP inspection report"))
+      report)))
+
+(defun heurigraph--mcp-authority-summary (report)
+  "Summarize connector authority from MCP inspection REPORT."
+  (let* ((server (alist-get 'server report))
+         (canonical-entry (assq 'canonical_sources_read_only server))
+         (proposal-entry (assq 'proposal_queue_write server))
+         (version (alist-get 'version server)))
+    (format
+     "Heurigraph MCP%s for %s: canonical sources %s; proposal queues %s"
+     (if (and (stringp version) (not (string-empty-p version)))
+         (format " %s" version)
+       "")
+     (heurigraph--mcp-root)
+     (cond
+      ((null canonical-entry) "authority not reported")
+      ((cdr canonical-entry) "read-only")
+      (t "writable"))
+     (cond
+      ((null proposal-entry) "authority not reported")
+      ((cdr proposal-entry) "append-only writable")
+      (t "not writable")))))
+
+;;;###autoload
+(defun heurigraph-mcp-inspect ()
+  "Check the local MCP connector against the current forest.
+This inspects the canonical-read-only, append-only proposal boundary; the
+desktop MCP client, rather than Emacs, owns the long-running stdio process."
+  (interactive)
+  (let ((report (heurigraph--mcp-inspection t)))
+    (message "%s" (heurigraph--mcp-authority-summary report))
+    report))
+
+;;;###autoload
+(defun heurigraph-mcp-copy-configuration ()
+  "Copy desktop-client JSON for the current forest to the kill ring.
+The generated command uses an absolute executable path and exact canonical
+forest root, avoiding the reduced PATH commonly supplied to desktop apps.
+When called interactively, inspect and confirm the connector's exact root and
+canonical-read-only, append-only-proposal authority first."
+  (interactive)
+  (let* ((interactive-p (called-interactively-p 'interactive))
+         (report (when interactive-p (heurigraph--mcp-inspection)))
+         (summary (when report (heurigraph--mcp-authority-summary report)))
+         (configuration
+         `((mcpServers
+            . ((heurigraph
+                . ((command . ,(heurigraph--mcp-command))
+                   (args . ,(vconcat (heurigraph--mcp-args))))))))))
+    (when (and summary
+               (not (yes-or-no-p (format "%s. Copy this configuration? " summary))))
+      (user-error "MCP configuration not copied"))
+    (kill-new (json-serialize configuration :null-object nil :false-object :json-false))
+    (message "Copied Heurigraph MCP desktop configuration%s"
+             (if summary (format " (%s)" summary) ""))))
+
+;;;###autoload
+(defun heurigraph-ai-workflow (action)
+  "Open one guided, bounded AI authoring ACTION.
+This entry point deliberately exposes only capability inspection, connector
+setup, local proposal review, suggestion review, and validation.  The desktop
+MCP client continues to own model interaction and proposal submission."
+  (interactive
+   (list
+    (completing-read
+     "Heurigraph AI workflow: "
+     '("Inspect connector authority"
+       "Copy desktop connector configuration"
+       "Open proposal review center"
+       "Review semantic suggestions"
+       "Validate forest")
+     nil t nil nil "Inspect connector authority")))
+  (pcase action
+    ("Inspect connector authority" (heurigraph-mcp-inspect))
+    ("Copy desktop connector configuration"
+     (call-interactively #'heurigraph-mcp-copy-configuration))
+    ("Open proposal review center" (heurigraph-review-center))
+    ("Review semantic suggestions" (heurigraph-suggest-list))
+    ("Validate forest" (heurigraph-validate))
+    (_ (user-error "Unknown Heurigraph AI workflow action: %s" action))))
+
+;;;###autoload
+(defun heurigraph-review-center ()
+  "Build and open the consolidated local advisory-proposal review center."
+  (interactive)
+  (let* ((args '("review" "build" "--json"))
+         (result (heurigraph--call-output args))
+         (code (car result))
+         (output (cdr result)))
+    (unless (zerop code)
+      (user-error "Heurigraph review build failed: %s" (string-trim output)))
+    (let* ((report (heurigraph--parse-json-output output "review center"))
+           (path (alist-get 'path report)))
+      (unless (and (stringp path) (file-exists-p path))
+        (user-error "Heurigraph reported an invalid review path: %S" path))
+      (browse-url-of-file path)
+      (message "Opened Heurigraph review center"))))
 
 (defun heurigraph--rename-id-plan (old-id new-id)
   "Return the parsed dry-run report for renaming OLD-ID to NEW-ID."
@@ -1464,7 +1795,7 @@ Returns a list of alists with keys `id', `title', `taxon', `source'."
                (heurigraph--call-output
                 '("find" "--json" "--limit" "0" ""))))
     (unless (zerop code)
-      (user-error "heurigraph find failed (exit %s): %s"
+      (user-error "Heurigraph find failed (exit %s): %s"
                   code (string-trim output)))
     (append (heurigraph--parse-json-output output "node completion") nil)))
 
@@ -1475,28 +1806,37 @@ The inserted text still uses the stable Heurigraph id, so you can search by
   :type 'boolean
   :group 'heurigraph)
 
+(defcustom heurigraph-new-title-completion-styles '(flex basic)
+  "Completion styles used by the title prompt in `heurigraph-new'.
+The default enables built-in fuzzy matching while retaining ordinary prefix
+completion as a fallback.  Set this to nil to inherit `completion-styles'."
+  :type '(repeat symbol)
+  :group 'heurigraph)
+
 (defun heurigraph--node-label (node)
   "Return a completion label for NODE.
-The label intentionally contains title, id, taxon, subjects, and keywords so
+The label intentionally contains title, id, taxon, subjects, and aliases so
 ordinary Emacs completion can narrow by any of those fields."
   (let* ((id (alist-get 'id node))
          (title (or (alist-get 'title node) "Untitled"))
          (taxon (or (alist-get 'taxon node) (alist-get 'kind node) ""))
          (subjects (alist-get 'subjects node))
-         (keywords (alist-get 'keywords node))
-         (kw (when keywords (string-join keywords ", "))))
+         (aliases (alist-get 'aliases node))
+         (alias-text (when aliases (string-join aliases ", "))))
     (if heurigraph-completion-title-first
         (string-join
          (delq nil (list title (format "— %s" id)
                          (unless (string-empty-p taxon) (format "[%s]" taxon))
                          (when subjects (format "{%s}" (string-join subjects ",")))
-                         (when (and kw (not (string-empty-p kw))) (format "#%s" kw))))
+                         (when (and alias-text (not (string-empty-p alias-text)))
+                           (format "aka %s" alias-text))))
          " ")
       (string-join
        (delq nil (list (format "%-16s" id) title
                        (unless (string-empty-p taxon) (format "[%s]" taxon))
                        (when subjects (format "{%s}" (string-join subjects ",")))
-                       (when (and kw (not (string-empty-p kw))) (format "#%s" kw))))
+                       (when (and alias-text (not (string-empty-p alias-text)))
+                         (format "aka %s" alias-text))))
        " "))))
 
 (defun heurigraph--node-candidates (&optional kind)
@@ -1511,12 +1851,59 @@ either trees or pages."
                       (heurigraph--nodes))))
 
 (defun heurigraph--read-node (prompt &optional kind)
-  "Pick a node by title/id/subject/taxon/keyword with completion; return alist.
+  "Using PROMPT, pick a node by title/id/subject/taxon/alias; return an alist.
 Type what you remember (\"Null Factor\", \"mho-0001\", \"factoring\") and
-completion narrows over the displayed title-rich candidate."
+completion narrows over the displayed title-rich candidate.  When KIND is
+\"tree\" or \"page\", restrict candidates to that kind."
   (let* ((cands (heurigraph--node-candidates kind))
          (choice (completing-read prompt cands nil t)))
     (cdr (assoc choice cands))))
+
+(defun heurigraph--read-new-node-title ()
+  "Read a non-empty title while searching existing tree titles fuzzily.
+The prompt accepts arbitrary input because its purpose is to create a new
+tree.  Choosing an existing completion candidate uses that node's title.
+An exact case-insensitive title collision requires explicit confirmation."
+  (let* ((candidates (heurigraph--node-candidates "tree"))
+         (completion-styles
+          (or heurigraph-new-title-completion-styles completion-styles))
+         (choice
+          (completing-read
+           "Title (search existing or enter new): "
+           candidates nil nil))
+         (selected (cdr (assoc choice candidates)))
+         (title (string-trim
+                 (or (and selected (alist-get 'title selected)) choice)))
+         (duplicates
+          (seq-filter
+           (lambda (candidate)
+             (string-equal-ignore-case
+              title
+              (or (alist-get 'title (cdr candidate)) "")))
+           candidates)))
+    (when (string-empty-p title)
+      (user-error "A new node title cannot be empty"))
+    (when duplicates
+      (let* ((node (cdar duplicates))
+             (id (alist-get 'id node))
+             (taxon (alist-get 'taxon node))
+             (description
+              (string-join
+               (delq nil
+                     (list id
+                           (and taxon (not (string-empty-p taxon)) taxon)))
+               ", ")))
+        (unless
+            (yes-or-no-p
+             (format
+              "A node titled %S already exists%s; create another anyway? "
+              title
+              (if (string-empty-p description)
+                  ""
+                (format " (%s)" description))))
+          (user-error
+           "New node cancelled; use `heurigraph-find-node' to open the existing node"))))
+    title))
 
 (defun heurigraph--target-id (node)
   "Return the stable target string for NODE."
@@ -1529,13 +1916,172 @@ completion narrows over the displayed title-rich candidate."
    (replace-regexp-in-string "\\\\" "\\\\" (or s "") t t)
    t t))
 
+(defun heurigraph--read-optional-positive-integer (prompt)
+  "Read an optional positive integer using PROMPT; return nil for blank."
+  (let ((value (string-trim (read-string prompt))))
+    (unless (string-empty-p value)
+      (unless (string-match-p "\\`[1-9][0-9]*\\'" value)
+        (user-error "Expected a positive integer or blank"))
+      (string-to-number value))))
+
+(defun heurigraph--normalize-string-list (values)
+  "Trim VALUES and discard empty strings."
+  (seq-filter
+   (lambda (value) (not (string-empty-p value)))
+   (mapcar #'string-trim values)))
+
+;;;###autoload
+(defun heurigraph-insert-rights
+    (status holder license permitted-uses restrictions attribution source)
+  "Insert reusable rights and distribution metadata at point.
+STATUS is one of `restricted', `licensed', `public-domain', or `unknown'.
+HOLDER, LICENSE, PERMITTED-USES, RESTRICTIONS, ATTRIBUTION, and SOURCE describe
+evidence and allowed or prohibited uses.  This record never makes a node
+public; `public: false' remains the publication gate."
+  (interactive
+   (list
+    (completing-read "Rights status: "
+                     '("restricted" "licensed" "public-domain" "unknown")
+                     nil t)
+    (string-trim (read-string "Rights holder (blank for none): "))
+    (string-trim (read-string "Licence (blank for none): "))
+    (split-string
+     (read-string "Permitted uses (comma-separated, blank for none): ")
+     "[[:space:]]*,[[:space:]]*" t)
+    (split-string
+     (read-string "Restrictions (comma-separated, blank for none): ")
+     "[[:space:]]*,[[:space:]]*" t)
+    (string-trim (read-string "Attribution (blank for none): "))
+    (string-trim (read-string "Rights source or URL (blank for none): "))))
+  (unless (member status '("restricted" "licensed" "public-domain" "unknown"))
+    (user-error
+     "Rights status must be restricted, licensed, public-domain, or unknown"))
+  (setq permitted-uses (heurigraph--normalize-string-list permitted-uses)
+        restrictions (heurigraph--normalize-string-list restrictions))
+  (let ((fields
+         (list
+          (format "  status: \"%s\"," (heurigraph--typst-string status)))))
+    (dolist (field
+             `(("holder" . ,holder)
+               ("license" . ,license)))
+      (unless (string-empty-p (cdr field))
+        (setq fields
+              (append
+               fields
+               (list
+                (format "  %s: \"%s\","
+                        (car field)
+                        (heurigraph--typst-string (cdr field))))))))
+    (dolist (field
+             `(("permitted-uses" . ,permitted-uses)
+               ("restrictions" . ,restrictions)))
+      (when (cdr field)
+        (setq fields
+              (append
+               fields
+               (list
+                (format
+                 "  %s: (%s),"
+                 (car field)
+                 (mapconcat
+                  (lambda (value)
+                    (format "\"%s\"" (heurigraph--typst-string value)))
+                  (cdr field) ", ")))))))
+    (dolist (field
+             `(("attribution" . ,attribution)
+               ("source" . ,source)))
+      (unless (string-empty-p (cdr field))
+        (setq fields
+              (append
+               fields
+               (list
+                (format "  %s: \"%s\","
+                        (car field)
+                        (heurigraph--typst-string (cdr field))))))))
+    (unless (bolp) (insert "\n"))
+    (insert "#rights(\n" (mapconcat #'identity fields "\n") "\n)")))
+
+;;;###autoload
+(defun heurigraph-insert-external-id
+    (system value url record-type revision)
+  "Insert a stable external platform identity at point.
+SYSTEM and VALUE form the forest-wide unique identity.  URL, RECORD-TYPE,
+and REVISION are optional descriptive integration fields."
+  (interactive
+   (list
+    (string-trim (read-string "External system (for example question-bank): "))
+    (string-trim (read-string "External record ID: "))
+    (string-trim (read-string "Record URL (blank for none): "))
+    (string-trim (read-string "Record type (blank for none): "))
+    (string-trim (read-string "Revision (blank for none): "))))
+  (when (or (string-empty-p system) (string-empty-p value))
+    (user-error "External system and record ID must not be blank"))
+  (let ((fields
+         (list
+          (format "  system: \"%s\"," (heurigraph--typst-string system))
+          (format "  value: \"%s\"," (heurigraph--typst-string value)))))
+    (unless (string-empty-p url)
+      (setq fields
+            (append fields
+                    (list (format "  url: \"%s\","
+                                  (heurigraph--typst-string url))))))
+    (unless (string-empty-p record-type)
+      (setq fields
+            (append fields
+                    (list (format "  record-type: \"%s\","
+                                  (heurigraph--typst-string record-type))))))
+    (unless (string-empty-p revision)
+      (setq fields
+            (append fields
+                    (list (format "  revision: \"%s\","
+                                  (heurigraph--typst-string revision))))))
+    (unless (bolp) (insert "\n"))
+    (insert "#external-id(\n" (mapconcat #'identity fields "\n") "\n)")))
+
+;;;###autoload
+(defun heurigraph-insert-publication-reference
+    (citation role locator edition page)
+  "Insert an edition-aware publication occurrence or provenance record.
+CITATION is a bibliography key, ROLE is a controlled provenance role, and
+LOCATOR identifies the occurrence.  EDITION and PAGE are optional."
+  (interactive
+   (list
+    (string-trim (read-string "Bibliography citation key: "))
+    (completing-read "Publication role: "
+                     heurigraph-publication-reference-roles nil t nil nil
+                     "appears-in")
+    (string-trim
+     (read-string "Locator (for example Chapter 2, Exercise 14): "))
+    (string-trim (read-string "Edition (blank for none): "))
+    (heurigraph--read-optional-positive-integer "Page (blank for none): ")))
+  (when (or (string-empty-p citation) (string-empty-p locator))
+    (user-error "Citation key and locator must not be blank"))
+  (unless (member role heurigraph-publication-reference-roles)
+    (user-error "Unknown publication-reference role: %s" role))
+  (let ((fields
+         (list
+          (format "  citation: \"%s\"," (heurigraph--typst-string citation))
+          (format "  role: \"%s\"," (heurigraph--typst-string role))
+          (format "  locator: \"%s\"," (heurigraph--typst-string locator)))))
+    (unless (string-empty-p edition)
+      (setq fields
+            (append fields
+                    (list (format "  edition: \"%s\","
+                                  (heurigraph--typst-string edition))))))
+    (when page
+      (setq fields (append fields (list (format "  page: %d," page)))))
+    (unless (bolp) (insert "\n"))
+    (insert "#publication-reference(\n"
+            (mapconcat #'identity fields "\n")
+            "\n)")))
+
 ;;;###autoload
 (defun heurigraph-insert-link (node text)
   "Insert a #link-to mention at point, selecting NODE by title.
 Unlike typed semantic relations, #link-to is an inline navigational mention;
 it may target either an id-bearing tree or a non-mathematical page.
 Completion is title-first by default, but the inserted target remains the
-stable id."
+stable id.  TEXT is the visible link label."
   (interactive
    (let* ((node (heurigraph--read-node "Link to title/id: "))
           (default (alist-get 'title node)))
@@ -1547,7 +2093,7 @@ stable id."
 
 ;;;###autoload
 (defun heurigraph-insert-transclusion (node)
-  "Insert #transclude for a tree selected by title.
+  "Insert #transclude for NODE, a tree selected by title.
 Pages are excluded because transclusion must expand an id-bearing tree."
   (interactive (list (heurigraph--read-node "Transclude title/id: " "tree")))
   (let ((target (heurigraph--target-id node)))
@@ -1560,16 +2106,53 @@ Pages are excluded because transclusion must expand an id-bearing tree."
   (seq-find (lambda (item) (equal (alist-get 'id item) id))
             (heurigraph--ontology-items kind)))
 
+(defun heurigraph--assertion-context-node-candidates (field)
+  "Return local node completion candidates suitable for context FIELD."
+  (when (member field '("framework" "stage"))
+    (let ((candidates (heurigraph--node-candidates "tree")))
+      (dolist (filter heurigraph-assertion-context-candidate-filter-functions)
+        (setq candidates (funcall filter field candidates)))
+      candidates)))
+
+(defun heurigraph--read-assertion-context-value (field required)
+  "Read assertion context FIELD, requiring a value when REQUIRED is non-nil.
+Framework and stage prompts complete local framework, course, and stage nodes
+while still accepting an external or not-yet-indexed context identifier."
+  (let* ((candidates (heurigraph--assertion-context-node-candidates field))
+         (prompt (format "%s%s: "
+                         (capitalize field)
+                         (if required " (required)" " (optional)")))
+         (choice
+          (if candidates
+              (completing-read prompt candidates nil nil)
+            (read-string prompt)))
+         (node (and candidates (cdr (assoc choice candidates))))
+         (value (string-trim (or (and node (alist-get 'id node)) choice))))
+    (when (and required (string-empty-p value))
+      (user-error "%s is required by this predicate" field))
+    (unless (string-empty-p value)
+      value)))
+
 (defun heurigraph--read-assertion-context (predicate-item)
-  "Prompt for fields required by PREDICATE-ITEM and return an alist."
-  (mapcar
-   (lambda (field)
-     (let ((value (read-string (format "%s (required): "
-                                      (capitalize field)))))
-       (when (string-empty-p (string-trim value))
-         (user-error "%s is required by this predicate" field))
-       (cons field value)))
-   (alist-get 'required_context predicate-item)))
+  "Prompt for required and selected optional fields of PREDICATE-ITEM."
+  (let* ((required (copy-sequence
+                    (or (alist-get 'required_context predicate-item) nil)))
+         (optional
+          (seq-remove (lambda (field) (member field required))
+                      heurigraph-assertion-context-fields))
+         context)
+    (dolist (field required)
+      (when-let ((value (heurigraph--read-assertion-context-value field t)))
+        (setq context (append context (list (cons field value))))))
+    (when optional
+      (dolist (field
+               (completing-read-multiple
+                "Optional context fields (comma-separated, blank for none): "
+                optional nil t))
+        (when-let ((value
+                    (heurigraph--read-assertion-context-value field nil)))
+          (setq context (append context (list (cons field value)))))))
+    context))
 
 (defun heurigraph--read-assertion-target (predicate-item)
   "Read a local tree or allowed external target for PREDICATE-ITEM."
@@ -1587,17 +2170,19 @@ Pages are excluded because transclusion must expand an id-bearing tree."
 
 (defun heurigraph--format-assertion (predicate target context)
   "Format a Typst relation from PREDICATE, TARGET, and CONTEXT alist."
-  (if (null context)
-      (format "#rel(\"%s\", \"%s\")" predicate target)
-    (concat
-     (format "#rel(\n  \"%s\",\n  \"%s\",\n" predicate target)
+  (let ((predicate (heurigraph--typst-string predicate))
+        (target (heurigraph--typst-string target)))
+    (if (null context)
+        (format "#rel(\"%s\", \"%s\")" predicate target)
+      (concat
+       (format "#rel(\n  \"%s\",\n  \"%s\",\n" predicate target)
      (mapconcat
       (lambda (pair)
         (format "  %s: \"%s\"," (car pair)
                 (heurigraph--typst-string (cdr pair))))
       context
       "\n")
-     "\n)")))
+       "\n)"))))
 
 ;;;###autoload
 (defun heurigraph-insert-assertion (predicate node &optional context)
@@ -1606,8 +2191,10 @@ PREDICATE completion comes from the resolved project registry.  Target NODE
 is searched by title, id, subject, taxon, and keyword; predicates which permit
 external targets also accept a manually entered external identity.  When the
 predicate requires framework, stage, audience, jurisdiction, or language,
-prompt for those fields and include them in the inserted `#rel'.  Optional
-CONTEXT is an alist of field-name strings to values."
+prompt for those fields and include them in the inserted `#rel'.  Remaining
+context fields can be selected interactively when they qualify an otherwise
+unscoped predicate.  Optional CONTEXT is an alist of field-name strings to
+values."
   (interactive
    (let* ((item (heurigraph--read-ontology-item
                  "Predicate: " 'predicates heurigraph-predicate-types))
@@ -1623,7 +2210,7 @@ CONTEXT is an alist of field-name strings to values."
 
 ;;;###autoload
 (defun heurigraph-find-node (node)
-  "Jump to a tree's note by searching titles, ids, and keywords."
+  "Jump to NODE's source by searching titles, ids, and aliases."
   (interactive (list (heurigraph--read-node "Find tree: ")))
   (find-file (expand-file-name (alist-get 'source node) (heurigraph--root))))
 
@@ -1642,23 +2229,22 @@ three page categories explicit while the CLI remains the authority for ids."
     ("weeknote" (call-interactively #'heurigraph-new-weeknote))
     (_ (user-error "Unknown page kind: %s" kind))))
 
-(defun heurigraph--create-page (title kind keywords &optional extra-args)
-  "Create TITLE as page KIND with KEYWORDS and EXTRA-ARGS, then visit it."
-  (let* ((args (append (list "new" "--page" "--kind" kind)
+(defun heurigraph--create-page (title kind &optional extra-args)
+  "Create TITLE as page KIND with EXTRA-ARGS, then visit it."
+  (let* ((args (append (list "new" "--page" "--kind" kind "--json")
                        extra-args
-                       (list title)
-                       (unless (string-empty-p keywords)
-                         (list "--keywords" keywords))))
+                       (list title)))
          (result (heurigraph--call-output args))
          (code (car result))
-         (output (cdr result))
-         (path (when (string-match "^created page \\(.*\\)$" output)
-                 (match-string 1 output))))
+         (output (cdr result)))
     (unless (zerop code)
-      (user-error "heurigraph new --page failed: %s" (string-trim output)))
-    (if path
-        (find-file path)
-      (message "page created (path not reported)"))))
+      (user-error "Heurigraph new --page failed: %s" (string-trim output)))
+    (let* ((created (heurigraph--parse-json-output output "new page"))
+           (path (alist-get 'path created)))
+      (unless (and (stringp path) (file-exists-p path))
+        (user-error "Heurigraph reported an invalid created page path: %S" path))
+      (heurigraph--refresh-active-lsp)
+      (find-file path))))
 
 (defun heurigraph--read-page-title (prompt)
   "Read a page title using PROMPT; blank means today's date."
@@ -1668,20 +2254,18 @@ three page categories explicit while the CLI remains the authority for ids."
       title)))
 
 ;;;###autoload
-(defun heurigraph-new-content (title keywords)
-  "Create a content page with the next project-wide `prefix-XXXX` id."
+(defun heurigraph-new-content (title)
+  "Create a content page named TITLE with the next project-wide id."
   (interactive
-   (list (heurigraph--read-page-title "Content title (blank = today): ")
-         (read-string "Keywords (comma-separated): ")))
-  (heurigraph--create-page title "content" keywords))
+   (list (heurigraph--read-page-title "Content title (blank = today): ")))
+  (heurigraph--create-page title "content"))
 
 ;;;###autoload
-(defun heurigraph-new-journal (title keywords)
-  "Create a journal post with the next project-wide `prefix-XXXX` id."
+(defun heurigraph-new-journal (title)
+  "Create a journal post named TITLE with the next project-wide id."
   (interactive
-   (list (heurigraph--read-page-title "Journal title (blank = today): ")
-         (read-string "Keywords (comma-separated): ")))
-  (heurigraph--create-page title "journal" keywords))
+   (list (heurigraph--read-page-title "Journal title (blank = today): ")))
+  (heurigraph--create-page title "journal"))
 
 ;;;###autoload
 (defun heurigraph-new-weeknote (year week)
@@ -1701,7 +2285,6 @@ manually.  The resulting stable id and default title are `YYYY-WXX`."
     (heurigraph--create-page
      (format "Weeknotes %s" id)
      "weeknote"
-     ""
      (list "--year" (number-to-string year)
            "--week" (number-to-string week)))))
 
@@ -1742,7 +2325,7 @@ manually.  The resulting stable id and default title are `YYYY-WXX`."
 
 ;;;###autoload
 (defun heurigraph-new-diagram (title)
-  "Create and visit the next `cetz-XXXX' CeTZ diagram from the template."
+  "Create and visit a CeTZ diagram named TITLE with the next `cetz-XXXX' id."
   (interactive (list (read-string "Diagram title: ")))
   (when (string-empty-p (string-trim title))
     (user-error "Diagram title must not be empty"))
@@ -1751,15 +2334,15 @@ manually.  The resulting stable id and default title are `YYYY-WXX`."
          (code (car result))
          (output (cdr result)))
     (unless (zerop code)
-      (user-error "heurigraph diagram new failed: %s" (string-trim output)))
+      (user-error "Heurigraph diagram new failed: %s" (string-trim output)))
     (if (string-match "^created diagram \\(.+\\)$" output)
         (find-file (match-string 1 output))
-      (message "diagram created (path not reported)"))))
+      (message "Diagram created (path not reported)"))))
 
 ;;;###autoload
 (defun heurigraph-insert-diagram (name alt width caption)
   "Insert a CeTZ diagram reference with editable parameters.
-NAME is relative to `diagrams/' without `.typ'. ALT is the accessible image
+NAME is relative to `diagrams/' without `.typ'.  ALT is the accessible image
 description, WIDTH is a Typst length, and an empty CAPTION omits the caption."
   (interactive
    (let* ((diagram (heurigraph--read-diagram))
@@ -1787,7 +2370,7 @@ description, WIDTH is a Typst length, and an empty CAPTION omits the caption."
          (code (car result))
          (output (cdr result)))
     (unless (zerop code)
-      (user-error "heurigraph image list failed: %s" (string-trim output)))
+      (user-error "Heurigraph image list failed: %s" (string-trim output)))
     (let ((assets (heurigraph--parse-json-output output "image list")))
       (unless (listp assets)
         (user-error "Heurigraph returned an invalid image list"))
@@ -1826,7 +2409,7 @@ description, WIDTH is a Typst length, and an empty CAPTION omits the caption."
          (code (car result))
          (output (cdr result)))
     (unless (zerop code)
-      (user-error "heurigraph %s failed: %s" description (string-trim output)))
+      (user-error "Heurigraph %s failed: %s" description (string-trim output)))
     (let ((asset (heurigraph--parse-json-output output description)))
       (heurigraph--image-public-path asset)
       asset)))
@@ -1867,17 +2450,28 @@ retarget that buffer to the new filename after the filesystem rename."
     asset))
 
 ;;;###autoload
-(defun heurigraph-insert-image (id path)
+(defun heurigraph-insert-image (id path &optional alt)
   "Insert the managed image identified by ID at project-relative PATH.
 Interactive selection is by `img-XXXX' id.  The emitted Typst source resolves
-the stored extension and intentionally adds no description, tag, or caption."
+the stored extension.  ALT is informative text; an explicitly empty string
+marks the occurrence decorative.  Non-interactive callers that omit ALT get
+the deliberately invalid `alt: none' placeholder."
   (interactive
    (let ((asset (heurigraph--read-image)))
-     (list (alist-get 'id asset) (alist-get 'path asset))))
+     (list
+      (alist-get 'id asset)
+      (alist-get 'path asset)
+      (read-string "Alternative text (empty = decorative): "))))
   (let ((public-path
          (heurigraph--image-public-path `((id . ,id) (path . ,path)))))
     (unless (bolp) (insert "\n"))
-    (insert (format "#image(\"%s\")" (heurigraph--typst-string public-path)))
+    (insert
+     (format
+      "#image(\"%s\", alt: %s)"
+      (heurigraph--typst-string public-path)
+      (if (stringp alt)
+          (format "\"%s\"" (heurigraph--typst-string alt))
+        "none")))
     (message "Inserted image %s" id)))
 
 (defun heurigraph--id-at-file ()
@@ -1889,14 +2483,125 @@ the stored extension and intentionally adds no description, tag, or caption."
            name)
       (match-string 1 name))))
 
+(defun heurigraph--knowledge-node-string-field (field)
+  "Return the literal string value of knowledge-node FIELD.
+Signal a user error when the current buffer has no complete knowledge-node
+declaration or FIELD is missing, empty, or not a string."
+  (let* ((call (or (heurigraph--knowledge-node-call)
+                   (user-error "No complete #knowledge-node declaration found")))
+         (start (or (heurigraph--metadata-field-value-start call field)
+                    (user-error "The knowledge-node has no %s field" field))))
+    (unless (eq (char-after start) ?\")
+      (user-error "The knowledge-node %s field is not a string" field))
+    (save-excursion
+      (goto-char (1+ start))
+      (let ((value-start (point))
+            value-end)
+        (while (and (< (point) (cdr call)) (not value-end))
+          (pcase (char-after)
+            (?\\ (forward-char (min 2 (- (cdr call) (point)))))
+            (?\" (setq value-end (point)))
+            (_ (forward-char 1))))
+        (unless value-end
+          (user-error "The knowledge-node %s string is incomplete" field))
+        (let ((value (buffer-substring-no-properties value-start value-end)))
+          (when (string-empty-p value)
+            (user-error "The knowledge-node %s field is empty" field))
+          value)))))
+
+(defun heurigraph--filename-slug (title)
+  "Return the canonical ASCII filename slug for TITLE."
+  (string-trim
+   (replace-regexp-in-string "[^a-z0-9]+" "-" (downcase title))
+   "-+" "-+"))
+
+(defun heurigraph--title-filename-destination ()
+  "Return the current tree's destination filename derived from its title.
+The permanent id is preserved; the filename is normalized to `id--slug.typ'."
+  (unless buffer-file-name
+    (user-error "The current buffer is not visiting a file"))
+  (when (file-remote-p buffer-file-name)
+    (user-error "Title-based rename is restricted to local files"))
+  (let* ((old-path (expand-file-name buffer-file-name))
+         (basename (file-name-nondirectory old-path))
+         (file-id (or (heurigraph--id-at-file)
+                      (user-error "The filename has no canonical tree id")))
+         (metadata-id (heurigraph--knowledge-node-string-field "id"))
+         (title (heurigraph--knowledge-node-string-field "title"))
+         (slug (heurigraph--filename-slug title)))
+    (unless (string-suffix-p ".typ" basename)
+      (user-error "The current knowledge-node file does not end in .typ"))
+    (unless (string= file-id metadata-id)
+      (user-error
+       "Filename id %s does not match knowledge-node id %s; use heurigraph-rename-id"
+       file-id metadata-id))
+    (when (string-empty-p slug)
+      (user-error "The title does not produce a usable ASCII filename slug"))
+    (expand-file-name
+     (format "%s--%s.typ" file-id slug)
+     (file-name-directory old-path))))
+
+;;;###autoload
+(defun heurigraph-rename-file-from-title ()
+  "Rename the current knowledge-node file from its metadata title.
+The command preserves the permanent tree id, normalizes the filename to
+`id--slug.typ', refuses destination collisions and symlinks, saves the current
+buffer, and keeps the buffer attached to the renamed file.  Graph references
+are not changed because they use the stable id rather than the filename slug."
+  (interactive)
+  (let* ((old-path (or buffer-file-name
+                       (user-error "The current buffer is not visiting a file")))
+         (new-path (heurigraph--title-filename-destination)))
+    (cond
+     ((string-equal (expand-file-name old-path) new-path)
+      (message "Filename already matches the knowledge-node title"))
+     ((file-symlink-p old-path)
+      (user-error "Refusing to rename a symbolic link"))
+     ((file-exists-p new-path)
+      (user-error "Rename destination already exists: %s" new-path))
+     ((find-buffer-visiting new-path)
+      (user-error "Rename destination is already open: %s" new-path))
+     ((yes-or-no-p
+       (format "Rename %s to %s? "
+               (file-name-nondirectory old-path)
+               (file-name-nondirectory new-path)))
+      (save-buffer)
+      (unless (file-regular-p old-path)
+        (user-error "The current buffer is not visiting a regular file"))
+      (rename-file old-path new-path nil)
+      ;; The file has already moved; retarget the live buffer without asking
+      ;; `set-visited-file-name' to perform a second filesystem operation.
+      (set-visited-file-name new-path t nil)
+      (set-visited-file-modtime)
+      (set-buffer-modified-p nil)
+      (heurigraph--refresh-active-lsp)
+      (message "Renamed note to %s" (file-name-nondirectory new-path))))))
+
 ;;;###autoload
 (defun heurigraph-init ()
-  "Initialise a Heurigraph project in the chosen directory (`heurigraph init')."
+  "Initialise a Heurigraph project with explicit local and global identities."
   (interactive)
-  (let ((heurigraph-notes-directory
-         (read-directory-name "Initialise Heurigraph in: " (heurigraph--root))))
+  (let* ((heurigraph-notes-directory
+          (read-directory-name "Initialise Heurigraph in: " (heurigraph--root)))
+         (config-path
+          (expand-file-name "heurigraph.toml" heurigraph-notes-directory)))
     (make-directory heurigraph-notes-directory t)
-    (heurigraph--run '("init"))))
+    (if (file-exists-p config-path)
+        (heurigraph--run '("init"))
+      (let ((prefix
+             (string-trim
+              (read-string
+               "Project id prefix (lowercase letters/digits, e.g. kogs): ")))
+            (forest-iri
+             (string-trim
+              (read-string
+               "Forest IRI (e.g. https://example.org/forests/research): "))))
+        (when (string-empty-p prefix)
+          (user-error "Project id prefix is required"))
+        (when (string-empty-p forest-iri)
+          (user-error "Forest IRI is required"))
+        (heurigraph--run
+         (list "init" "--prefix" prefix "--forest-iri" forest-iri))))))
 
 
 ;;; Suggestion queue ---------------------------------------------------------
@@ -1933,7 +2638,8 @@ ontology.  CONTEXT is an optional alist of qualified-assertion fields."
 ;;;###autoload
 (defun heurigraph-suggest-list (&optional all json)
   "List assertion suggestions.
-With prefix argument ALL, include accepted/rejected suggestions."
+With prefix argument ALL, include accepted/rejected suggestions.  When JSON is
+non-nil, request machine-readable output."
   (interactive "P")
   (let ((args (list "suggest" "list")))
     (when all (setq args (append args (list "--all"))))
@@ -1965,19 +2671,6 @@ With prefix argument ALL, include accepted/rejected suggestions."
      predicate
      (heurigraph--read-assertion-target item)
      (heurigraph--read-assertion-context item))))
-
-;;;###autoload
-(defun heurigraph-insert-depends-on () "Insert math:depends_on." (interactive) (heurigraph--insert-fixed-assertion "math:depends_on"))
-;;;###autoload
-(defun heurigraph-insert-uses () "Insert math:uses." (interactive) (heurigraph--insert-fixed-assertion "math:uses"))
-;;;###autoload
-(defun heurigraph-insert-enables-method () "Insert math:enables_method." (interactive) (heurigraph--insert-fixed-assertion "math:enables_method"))
-;;;###autoload
-(defun heurigraph-insert-solution-to () "Insert edu:solution_to." (interactive) (heurigraph--insert-fixed-assertion "edu:solution_to"))
-;;;###autoload
-(defun heurigraph-insert-strategy-for () "Insert edu:strategy_for." (interactive) (heurigraph--insert-fixed-assertion "edu:strategy_for"))
-;;;###autoload
-(defun heurigraph-insert-addresses () "Insert edu:addresses." (interactive) (heurigraph--insert-fixed-assertion "edu:addresses"))
 
 ;;;###autoload
 (defun heurigraph-refresh-completions ()
