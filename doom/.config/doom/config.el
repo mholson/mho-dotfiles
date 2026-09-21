@@ -128,28 +128,20 @@
        :desc "Subtree Insert" "s" #'mho/insert-subtree
        :desc "Weeknote"       "w" #'mho/forester--create-weeknote-file))
 
-(use-package! heurigraph
-  :load-path "~/.config/doom/src/heurigraph"
-  :config
-  (setq heurigraph-executable "heurigraph"
-        heurigraph-notes-directory "~/Kognity/kogs"))
-(setq heurigraph-new-public-by-default t)
-(use-package! heurigraph-lsp
-  :after (heurigraph lsp-mode)
-  :load-path "~/.config/doom/src/heurigraph"
-  :config
-  (heurigraph-lsp-register-lsp-mode))
+;; Load eagerly so SPC e is available before visiting a Typst buffer.
+(add-to-list 'load-path "~/.config/doom/src/heurigraph")
+(require 'heurigraph-mode)
+(setq heurigraph-executable "heurigraph"
+      heurigraph-notes-directory "~/Kognity/kogs"
+      heurigraph-new-public-by-default t)
+(heurigraph-doom-setup-keybindings)
 
-(use-package! heurigraph-mode
-  :after heurigraph
-  :load-path "~/.config/doom/src/heurigraph"
-  :hook ((typst-ts-mode . heurigraph-enable-for-typst)
-         (toml-ts-mode . heurigraph-enable-for-collection)
-         (toml-ts-mode . heurigraph-enable-for-ontology)
-         (toml-mode . heurigraph-enable-for-collection)
-         (toml-mode . heurigraph-enable-for-ontology))
-  :config
-  (heurigraph-doom-setup-keybindings))
+;; Heurigraph uses built-in Eglot; no lsp-mode registration is needed.
+(add-hook 'typst-ts-mode-hook #'heurigraph-enable-for-typst)
+(add-hook 'typst-mode-hook #'heurigraph-enable-for-typst)
+(add-hook 'toml-ts-mode-hook #'heurigraph-enable-for-ontology)
+(add-hook 'conf-toml-mode-hook #'heurigraph-enable-for-ontology)
+(add-hook 'toml-mode-hook #'heurigraph-enable-for-ontology)
 
 (defun mho/forester--date ()
   "Insert current date in Typst \\date{...} format at point.

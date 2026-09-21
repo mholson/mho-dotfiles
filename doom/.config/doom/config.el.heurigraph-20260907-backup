@@ -1,249 +1,96 @@
-#+title: Doom Emacs Configuration
-#+author: Mark Olson
-
-* 0 Meta
-** Configuring Packages
-If a package was enabled via a Doom module within =init.el=, or is a built-in Emacs feature, prefer:
-
-#+begin_src emacs-lisp
 ;; (after! packageName
 ;;   ...)
-#+end_src
 
-If the package was manually installed (typically via =packages.el=), use:
-
-#+begin_src emacs-lisp
 ;; (use-package! packageName
 ;;   :hook (...)
 ;;   :init (...)
 ;;   :config (...))
-#+end_src
 
-* 1 Personal
-** Contact Information
-Apparently needed for some GPG / signing workflows.
-Taken from tecosaur:
-[[https://github.com/tecosaur/emacs-config/blob/master/config.org#personal-information][emacs-config/config.org at master · tecosaur/emacs-config · GitHub]]
-
-#+begin_src emacs-lisp
 (setq user-full-name "Mark Olson"
       user-mail-address "41911657+mholson@users.noreply.github.com")
-#+end_src
 
-** GPG
-#+begin_src emacs-lisp
 (setq epa-file-select-keys nil) ;; disable selection prompt
 (setq epa-file-encrypt-to '("AA439838FBBF10FC"))
-#+end_src
 
-* 2 Core Emacs Behavior
-** Cursor
-Stretch the width of the block cursor to match the width of the glyph.
-#+begin_src emacs-lisp
 (setq-default x-stretch-cursor t)
-#+end_src
 
-** Files
-*** Move to Trash
-#+begin_src emacs-lisp
 (setq delete-by-moving-to-trash t)
-#+end_src
 
-*** Auto-save
-#+begin_src emacs-lisp
 (setq auto-save-default t)
-#+end_src
 
-*** Undo
-**** Raise Limit
-Raising the undo limit to 80 MB.
-#+begin_src emacs-lisp
 (setq undo-limit 80000000)
-#+end_src
 
-**** Evil Granular Undo
-#+begin_src emacs-lisp
 (setq evil-want-fine-undo t)
-#+end_src
 
-*** Org-Mode Directory
-Set this early.
-#+begin_src emacs-lisp
 ;; (setq org-directory
 ;;       (expand-file-name
 ;;        "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/"))
-#+end_src
 
-** Line Numbers
-If set to =nil=, line numbers are disabled. I prefer relative line numbers.
-#+begin_src emacs-lisp
 (setq display-line-numbers-type 'relative)
-#+end_src
 
-** Passwords
-After how many seconds should Emacs forget my passwords?
-I trust this machine, so set it to nil.
-#+begin_src emacs-lisp
 (setq password-cache-expiry nil)
-#+end_src
 
-** Scrolling
-A little margin looks good.
-#+begin_src emacs-lisp
 (setq scroll-preserve-screen-position 'always
       scroll-margin 4)
-#+end_src
 
-** Window
-*** Size
-Proportionally resize the size of the window.
-#+begin_src emacs-lisp
 (setq-default window-combination-resize t)
-#+end_src
 
-Default frame size:
-#+begin_src emacs-lisp
 (add-to-list 'default-frame-alist '(height . 34))
 (add-to-list 'default-frame-alist '(width  . 80))
-#+end_src
 
-* 3 UI
-** Fonts
-If you or Emacs can't find your font:
-- =M-x describe-font=
-- =M-x eval-region=
-- =M-x doom/reload-font=
-
-Doom exposes five variables for controlling fonts.
-
-*** Doom Primary Font
-I rather like Iosevka.
-#+begin_src emacs-lisp
 (setq doom-font (font-spec :family "Iosevka Nerd Font Mono" :size 18))
-#+end_src
 
-Make the ellipsis pretty:
-#+begin_src emacs-lisp
 (setq truncate-string-ellipsis "…")
-#+end_src
 
-*** Doom Variable Pitch Font
-#+begin_src emacs-lisp
 (setq doom-variable-pitch-font (font-spec :family "Iosevka Nerd Font Mono" :size 16))
-#+end_src
 
-*** Doom Big Font
-Double size for the big font.
-#+begin_src emacs-lisp
 (setq doom-big-font (font-spec :family "Iosevka Nerd Font Mono" :size 32 ))
-#+end_src
 
-*** Doom Symbol Font
-SF Symbols support:
-- Article: https://xenodium.com/emacs-insert-and-render-sf-symbols/
-- sf.el:    https://github.com/xenodium/dotsies/blob/main/emacs/ar/sf.el
-
-#+begin_src emacs-lisp
 ;;(set-fontset-font t nil "SF Pro Display" nil 'append)
 ;;(load! "src/sf.el")
-#+end_src
 
-*** Doom Serif Font
-(Optional)
-
-** Themes
-I really like working in dark-mode using Arctic Archive Dark.
-#+begin_src emacs-lisp
 (setq doom-theme 'arctic-archive-dark)
-#+end_src
 
-** Modeline
-*** Week Numbers
-Show time and week number in the modeline.
-#+begin_src emacs-lisp
 (after! time
   (setq display-time-format "%H:%M  Wk%V"
         display-time-24hr-format t
         display-time-default-load-average nil)
   (display-time-mode 1))
-#+end_src
 
-** Which-key
-Load which-key faster.
-#+begin_src emacs-lisp
 (setq which-key-idle-delay 0.5)
-#+end_src
 
-* 4 Platform
-** Modifier Keys
-*** Apple Swedish Keyboard
-Using an Apple Swedish keyboard:
-- Option key still accesses common symbols
-- Meta and Control are thumb-friendly
-
-#+begin_src emacs-lisp
 (setq mac-option-modifier nil
       mac-command-modifier 'meta
       mac-right-command-modifier 'control
       mac-control-modifier 'super
       mac-function-modifier 'hyper)
-#+end_src
 
-* 5 Keybindings
-Note to self: Doom keybinding maps
-- =:n= normal mode
-- =:v= visual mode
-- =:i= insert mode
-
-** Global
-*** Smartparens
-#+begin_src emacs-lisp
 (map! :n "C-å" #'sp-wrap-curly
       :n "M-o" #'sp-up-sexp
       :n "M-b" #'sp-down-sexp)
-#+end_src
 
-*** Key Translations
-#+begin_src emacs-lisp
 (define-key key-translation-map (kbd "§") (kbd "\\"))
 (map! :i "C-<" (cmd! (insert "{")))
-#+end_src
 
-*** Generate Custom IDs
-Fast keybinding to pop/copy next ID.
-#+begin_src emacs-lisp
 (map! :leader
       :desc "mho/gen-id (pop+copy)"
       "j" #'mho/gen-id
 :desc "Remove ID from pool"
       "r" #'mho/id-pool-remove-id-prompt)
-#+end_src
 
-** Org
-*** Links
-#+begin_src emacs-lisp
 (map! :leader
       (:prefix ("l" . "link")
        :desc "Clipboard" "c" #'org-cliplink
        :desc "File"      "f" #'mho/org-insert-file-link))
-#+end_src
 
-*** Agenda
-#+begin_src emacs-lisp
 (map! :n "C-c a" #'org-agenda
       :n "C-c c" #'org-capture)
-#+end_src
 
-Make capture discoverable (Swedish key):
-#+begin_src emacs-lisp
 (map! :leader
       (:prefix ("å" . "org")
        :desc "Agenda" "å" #'org-agenda
        :desc "Capture" "c" #'org-capture))
-#+end_src
 
-*** Vulpea
-#+begin_src emacs-lisp
 (map! :map org-mode-map
       :leader
       (:prefix ("v" . "Vulpea")
@@ -263,23 +110,15 @@ Make capture discoverable (Swedish key):
         :desc "Add"    "a" #'vulpea-buffer-tags-add
         :desc "Remove" "r" #'vulpea-buffer-tags-remove)
        :desc "Update DB"      "u" #'vulpea-db-sync-full-scan))
-#+end_src
 
-*** Org-Transclusion
-#+begin_src emacs-lisp
 (map! :n "C-ö r" #'org-transclusion-remove-all
       :n "C-ö a" #'org-transclusion-add)
-#+end_src
 
-#+begin_src emacs-lisp
 (map! :map org-mode-map
       :localleader
       :desc "Org Transclusion Mode"
       "C" #'org-transclusion-mode)
-#+end_src
 
-** Forester
-#+begin_src emacs-lisp
 (map! :leader
       (:prefix ("d" . "Forester")
        :desc "Find Tree"      "f" #'mho/forester--find-node
@@ -288,28 +127,30 @@ Make capture discoverable (Swedish key):
        :desc "Tree Insert"    "n" #'mho/forester--create-tree-file
        :desc "Subtree Insert" "s" #'mho/insert-subtree
        :desc "Weeknote"       "w" #'mho/forester--create-weeknote-file))
-#+end_src
-** Heurigraph
-#+begin_src emacs-lisp
-;; Load eagerly so SPC e is available before visiting a Typst buffer.
-(add-to-list 'load-path "~/.config/doom/src/heurigraph")
-(require 'heurigraph-mode)
-(setq heurigraph-executable "heurigraph"
-      heurigraph-notes-directory "~/Kognity/kogs"
-      heurigraph-new-public-by-default t)
-(heurigraph-doom-setup-keybindings)
 
-;; Heurigraph uses built-in Eglot; no lsp-mode registration is needed.
-(add-hook 'typst-ts-mode-hook #'heurigraph-enable-for-typst)
-(add-hook 'typst-mode-hook #'heurigraph-enable-for-typst)
-(add-hook 'toml-ts-mode-hook #'heurigraph-enable-for-ontology)
-(add-hook 'conf-toml-mode-hook #'heurigraph-enable-for-ontology)
-(add-hook 'toml-mode-hook #'heurigraph-enable-for-ontology)
-#+end_src
+(use-package! heurigraph
+  :load-path "~/.config/doom/src/heurigraph"
+  :config
+  (setq heurigraph-executable "heurigraph"
+        heurigraph-notes-directory "~/Github/KogGraphs/kogs"))
+(setq heurigraph-new-public-by-default t)
+(use-package! heurigraph-lsp
+  :after (heurigraph lsp-mode)
+  :load-path "~/.config/doom/src/heurigraph"
+  :config
+  (heurigraph-lsp-register-lsp-mode))
 
-* 6 Custom Library
-** Forester
-#+begin_src emacs-lisp
+(use-package! heurigraph-mode
+  :after heurigraph
+  :load-path "~/.config/doom/src/heurigraph"
+  :hook ((typst-ts-mode . heurigraph-enable-for-typst)
+         (toml-ts-mode . heurigraph-enable-for-collection)
+         (toml-ts-mode . heurigraph-enable-for-ontology)
+         (toml-mode . heurigraph-enable-for-collection)
+         (toml-mode . heurigraph-enable-for-ontology))
+  :config
+  (heurigraph-doom-setup-keybindings))
+
 (defun mho/forester--date ()
   "Insert current date in Typst \\date{...} format at point.
 Example: \\date{2025-07-25T09:10:46+02:00}"
@@ -433,40 +274,23 @@ If STYLE is nil, prompt."
   (let* ((full-id (mho/id-pool-pop))
          (title (read-string "Subtree title: ")))
     (insert (format "\\subtree[%s]{\n  \\title{%s}\n\n}\n" full-id title))))
-#+end_src
 
-** Outline-Indent
-#+begin_src emacs-lisp
 (defun mho/yaml-outline-indent-setup ()
   "Enable outline-indent with 2-space YAML-friendly defaults."
   (setq-local outline-indent-default-offset 2)
   (setq-local outline-indent-shift-width 2)
   (outline-indent-minor-mode 1))
-#+end_src
 
-** Org
-*** Links
-Easier file linking (tecosaur style).
-#+begin_src emacs-lisp
 (defun mho/org-insert-file-link ()
   "Insert an org file link using org's file completion."
   (interactive)
   (org-insert-link nil (org-link-complete-file)))
-#+end_src
 
-*** Agenda
-**** Archive completed tasks
-#+begin_src emacs-lisp
 (defun mho/task-archives-to-datetree ()
   "Archive all completed tasks in the current Org file into a date tree."
   (interactive)
   (org-map-entries #'org-archive-subtree "/DONE|XOUT" 'file))
-#+end_src
 
-** Custom 4 Character IDs
-*** 4-Char ID Pool + Reserve + Capture-safe org-id-new
-Custom 4 Character IDs (pool-based, reserve-on-capture, remove-on-finalize)
-#+begin_src emacs-lisp
 (require 'subr-x)
 
 (defgroup mho-ids nil
@@ -481,9 +305,7 @@ Custom 4 Character IDs (pool-based, reserve-on-capture, remove-on-finalize)
 (defcustom mho/id-pool-regex "\\`[A-Za-z0-9]\\{4\\}\\'"
   "Regex an ID must match."
   :type 'regexp)
-#+end_src
-*** Utilities
-#+begin_src emacs-lisp
+
 (defun mho/id--normalize (id)
   (upcase (string-trim (or id ""))))
 
@@ -763,13 +585,7 @@ Does NOT remove it from the pool yet."
       (org-id-add-location id f))
     (message "Heading ID set: %s" id)
     id))
-#+end_src
 
-** Rename Buffer and File Names
-Rename current buffer + file name based on file-level =:ID:= and =#+title:=.
-Works in Org buffers and Dired (file at point).
-
-#+begin_src emacs-lisp
 (defun mho/org--slugify-underscore (s)
   "Convert S to a lowercase underscore_slug for filenames."
   (let* ((s (downcase (string-trim (or s ""))))
@@ -864,47 +680,16 @@ Works in Dired (file at point) or Org buffers."
         (message "Renamed file: %s" new-path))))))
 
 (global-set-key (kbd "C-c r") #'mho/rename-org-file-based-on-id)
-#+end_src
 
-* 7 Packages
-** Outline-Indent
-https://github.com/jamescherti/outline-indent.el
-
-Automatic activation for YAML:
-#+begin_src emacs-lisp
 (add-hook 'yaml-mode-hook    #'mho/yaml-outline-indent-setup)
 (add-hook 'yaml-ts-mode-hook #'mho/yaml-outline-indent-setup)
-#+end_src
 
-Default keymaps (Evil):
-- =zo= open fold(s)
-- =zc= close fold(s)
-- =za= toggle folds
-- =gj= move forward same level
-- =gk= move backward same level
-
-** Org
-*** General
-**** Folding
-Large org files can be overwhelming; start folded.
-#+begin_src emacs-lisp
 (setq org-startup-folded t)
-#+end_src
 
-**** Images
-#+begin_src emacs-lisp
 (setq org-image-actual-width (list 550))
-#+end_src
 
-**** Text
-Hide emphasis markers on formatted text.
-#+begin_src emacs-lisp
 (setq org-hide-emphasis-markers t)
-#+end_src
 
-*** Agenda
-**** Capture Templates
-#+begin_src emacs-lisp
 (after! org-capture
   (defvar mho/work-file (expand-file-name "work.org" org-directory))
   (defvar mho/home-file (expand-file-name "home.org" org-directory))
@@ -973,10 +758,7 @@ Hide emphasis markers on formatted text.
            (file+headline ,mho/home-file "Meetings")
            "** %^{Type|1:1|1:many} %^{Topic} :meet:\nSCHEDULED: %^T\n:PROPERTIES:\n:CREATED: %u\n:END:\n%?"
            :prepend t :empty-lines 1))))
-#+end_src
 
-**** Calendar Week Numbers (ISO)
-#+begin_src emacs-lisp
 (setq calendar-week-start-day 1)
 (copy-face 'font-lock-constant-face 'calendar-iso-week-face)
 (set-face-attribute 'calendar-iso-week-face nil
@@ -993,10 +775,7 @@ Hide emphasis markers on formatted text.
 
 (setq calendar-intermonth-header
       (propertize "Wk" 'font-lock-face 'calendar-iso-week-header-face))
-#+end_src
 
-**** Todo Keywords + Faces
-#+begin_src emacs-lisp
 (after! org
   (setq org-todo-keywords
         '((sequence "TODO(t)" "NEXT(n)" "LIVE(l)" "WAIT(w)" "SOME(s)" "|" "DONE(d)" "XOUT(x)")
@@ -1011,10 +790,7 @@ Hide emphasis markers on formatted text.
           ("SOME" . "#8FBCBB")
           ("DONE" . "#D8DEE9")
           ("XOUT" . "#4C566A"))))
-#+end_src
 
-**** Priority Faces
-#+begin_src emacs-lisp
 (after! org
   (setq org-priority-faces
         '((?A . (:foreground "#2ECC71" :weight bold))  ;; (Acute): High Value :: Low Cost
@@ -1023,33 +799,18 @@ Hide emphasis markers on formatted text.
           (?D . (:foreground "#E74C3C" :slant italic)) ;; (Drain): avoid
           (?E . (:foreground "#9B59B6"))               ;; (Expand learn)
           (?F . (:foreground "#95A5A6")))))            ;; (Fluff & Finish)
-#+end_src
 
-**** Finished Items
-Skip finished scheduled/deadline items.
-#+begin_src emacs-lisp
 (setq org-agenda-todo-ignore-scheduled t
       org-agenda-todo-ignore-deadlines t
       org-agenda-skip-deadline-if-done t
       org-agenda-skip-scheduled-if-done t)
-#+end_src
 
-**** Timestamps
-Timestamp completed tasks.
-#+begin_src emacs-lisp
 (setq org-log-done 'time
       org-log-into-drawer t
       org-log-state-notes-insert-after-drawers nil)
-#+end_src
 
-**** Archive Location
-Archive to datetree in =*_archive= file.
-#+begin_src emacs-lisp
 (setq org-archive-location "%s_archive::datetree/")
-#+end_src
 
-*** Org Super Agenda
-#+begin_src emacs-lisp
 (use-package! org-super-agenda
   :after org-agenda
   :config
@@ -1075,10 +836,7 @@ Archive to datetree in =*_archive= file.
                          (:name "📂 PROJECTS" :todo "PROJ" :order 6)
                          (:name "📥 INBOX" :tag "inbox" :order 7)
                          (:discard (:todo ("DONE" "XOUT" "SOME"))))))))))))
-#+end_src
 
-*** Babel / Export
-#+begin_src emacs-lisp
 (use-package! ob-mermaid :after org)
 (use-package! ob-swift   :after org)
 (use-package! ox-typst   :after org)
@@ -1096,30 +854,16 @@ Archive to datetree in =*_archive= file.
   (defun org-typst-template (contents info)
     "Return CONTENTS unchanged (no extra template wrapper)."
     contents))
-#+end_src
 
-**** LaTeX Export
-#+begin_src emacs-lisp
 (setq org-latex-pdf-process
       '("LC_ALL=en_US.UTF-8 latexmk -f -pdf -%latex -shell-escape -interaction=nonstopmode -output-directory=%o %f"))
-#+end_src
 
-*** Org-Anki
-https://github.com/eyeinsky/org-anki
-#+begin_src emacs-lisp
 (use-package! anki-editor
   :after org)
-#+end_src
 
-*** Org-Transclusion
-https://github.com/nobiot/org-transclusion
-#+begin_src emacs-lisp
 (use-package! org-transclusion
   :after org)
-#+end_src
 
-*** Pomodoro
-#+begin_src emacs-lisp
 (after! org-pomodoro
   (setq org-pomodoro-start-sound
         "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/head_gestures_double_nod.caf"
@@ -1145,10 +889,7 @@ https://github.com/nobiot/org-transclusion
   (add-hook 'org-pomodoro-started-hook        #'mho/org-pomodoro-start-sound)
   (add-hook 'org-pomodoro-finished-hook       #'mho/org-pomodoro-finished-sound)
   (add-hook 'org-pomodoro-break-finished-hook #'mho/org-pomodoro-break-sound))
-#+end_src
 
-*** Vulpea
-#+begin_src emacs-lisp
 (use-package! vulpea
   :after org
   :config
@@ -1164,10 +905,7 @@ https://github.com/nobiot/org-transclusion
         :properties (("CREATED" . "%<[%Y-%m-%d]>"))))
 
   (vulpea-db-autosync-mode +1))
-#+end_src
 
-*** Vulpea Journal
-#+begin_src emacs-lisp
 (use-package! vulpea-journal
   :after (vulpea vulpea-ui)
   :config
@@ -1183,10 +921,7 @@ https://github.com/nobiot/org-transclusion
                        "* Weekend\n\n"
                      "* Work\n\n* Personal\n")))))
   (vulpea-journal-setup))
-#+end_src
 
-*** Vulpea ID display in minibuffer
-#+begin_src emacs-lisp
 (defun mho/vulpea-describe-with-id (note)
   "Show ID in a fixed left column, then the title."
   (let ((id (or (vulpea-note-id note) "----"))
@@ -1195,10 +930,7 @@ https://github.com/nobiot/org-transclusion
 
 (with-eval-after-load 'vulpea
   (setq vulpea-select-describe-fn #'mho/vulpea-describe-with-id))
-#+end_src
 
-*** Yasnippet
-#+begin_src emacs-lisp
 (after! yasnippet
   (setq yas-snippet-dirs (list (expand-file-name "~/.config/doom/snippets"))
         yas-triggers-in-field t)
@@ -1208,10 +940,7 @@ https://github.com/nobiot/org-transclusion
   (define-key yas-keymap (kbd "TAB")       #'yas-next-field)
   (define-key yas-keymap (kbd "<tab>")     #'yas-next-field)
   (define-key yas-keymap (kbd "<backtab>") #'yas-prev-field))
-#+end_src
 
-*** Org-Roam
-#+begin_src emacs-lisp
 (setq org-roam-directory (expand-file-name "~/Documents/roam-kb"))
 
 (use-package! org-roam
@@ -1258,10 +987,7 @@ https://github.com/nobiot/org-transclusion
         org-roam-ui-follow t
         org-roam-ui-update-on-save t
         org-roam-ui-open-on-start t))
-#+end_src
 
-** LaTeX Auto-Activating Snippets
-#+begin_src emacs-lisp
 (use-package laas
   :hook (LaTeX-mode . laas-mode)
   :config
@@ -1273,50 +999,23 @@ https://github.com/nobiot/org-transclusion
                     "==" "&="
                     "dx" "\\dl x"
                     "dy" "\\dl y"))
-#+end_src
 
-** Lorem-Ipsum
-#+begin_src emacs-lisp
 (use-package! lorem-ipsum)
-#+end_src
-* 8 Languages
-** Typst
 
-#+begin_src emacs-lisp
 (use-package! typst-ts-mode
   :mode ("\\.typ\\'" . typst-ts-mode))
-#+end_src
 
-** LaTeX
-*** Path
-#+begin_src emacs-lisp
 (setenv "PATH" "/usr/local/bin:/Library/TeX/texbin/:$PATH" t)
-#+end_src
 
-*** Compiling
-Do not prompt to save before compile.
-#+begin_src emacs-lisp
 (setq TeX-save-query nil)
-#+end_src
 
-Show compilation output.
-#+begin_src emacs-lisp
 (setq TeX-show-compilation t)
-#+end_src
 
-Add shell-escape.
-#+begin_src emacs-lisp
 (setq TeX-command-extra-options "-shell-escape")
-#+end_src
 
-Add XeLaTeX command.
-#+begin_src emacs-lisp
 (after! latex
   (add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex%(mode)%' %t" TeX-run-TeX nil t)))
-#+end_src
 
-*** Preview
-#+begin_src emacs-lisp
 (setq +latex-viewers '(skim preview))
 
 (setq TeX-view-program-list
@@ -1327,11 +1026,7 @@ Add XeLaTeX command.
       '((output-dvi "Skim")
         (output-pdf "Skim")
         (output-html "open")))
-#+end_src
 
-SyncTeX.
-#+begin_src emacs-lisp
 (setq TeX-source-correlate-mode t
       TeX-source-correlate-start-server t
       TeX-source-correlate-method 'synctex)
-#+end_src

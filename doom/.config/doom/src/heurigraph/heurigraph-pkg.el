@@ -1,7 +1,7 @@
 ;;; heurigraph-pkg.el --- Package metadata for Heurigraph -*- lexical-binding: t; no-byte-compile: t; -*-
 
 (define-package "heurigraph"
-  "4.3.1"
+  "6.4.24"
   "Ontology-aware Emacs authoring for Heurigraph knowledge forests"
   '((emacs "30.2"))
   :authors '(("Mark Olson" . "41911657+mholson@users.noreply.github.com"))

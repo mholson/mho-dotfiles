@@ -1,8 +1,8 @@
-;;; heurigraph-lsp.el --- LSP integration for Heurigraph -*- lexical-binding: t; -*-
+;;; heurigraph-lsp.el --- Eglot integration for Heurigraph -*- lexical-binding: t; -*-
 
 ;; Author: Mark Olson <41911657+mholson@users.noreply.github.com>
 ;; Maintainer: Mark Olson <41911657+mholson@users.noreply.github.com>
-;; Version: 4.3.1
+;; Version: 6.4.24
 ;; Package-Requires: ((emacs "30.2"))
 ;; Keywords: tools, languages, typst
 ;; URL: https://github.com/mholson/Heurigraph
@@ -10,244 +10,141 @@
 
 ;;; Commentary:
 
-;; Registers `heurigraph lsp' as a persistent project-semantic add-on for Typst
-;; buffers.  With lsp-mode it runs beside Tinymist: Tinymist owns Typst syntax,
-;; formatting, and preview while Heurigraph owns forest ids, relations,
-;; ontology-aware navigation, and refactors.
-;;
-;; Eglot generally manages one server per buffer.  `heurigraph-eglot-enable'
-;; therefore selects Heurigraph as the Typst server for the current session;
-;; use it when forest semantics matter more than a separate Typst server.
+;; Runs `heurigraph lsp' through Emacs's built-in Eglot client.  The nearest
+;; heurigraph.toml is always the workspace root.  Typst syntax and preview stay
+;; editor concerns; Heurigraph owns forest ids, relations, diagnostics, and
+;; refactors.
 
 ;;; Code:
 
 (require 'heurigraph)
-(require 'jsonrpc)
-(require 'seq)
-(require 'subr-x)
+(require 'project)
 
 (declare-function eglot-current-server "eglot")
+(declare-function jsonrpc--process "jsonrpc")
 (declare-function eglot-ensure "eglot")
 (declare-function eglot-managed-p "eglot")
-(declare-function lsp-deferred "lsp-mode")
-(declare-function lsp-register-client "lsp-mode")
-(declare-function lsp-send-execute-command "lsp-mode")
-(declare-function lsp-stdio-connection "lsp-mode")
-(declare-function lsp-workspaces "lsp-mode")
-(declare-function lsp--client-server-id "lsp-mode")
-(declare-function lsp--workspace-client "lsp-mode")
-(declare-function make-lsp-client "lsp-mode")
+(declare-function jsonrpc-request "jsonrpc")
 (defvar eglot-server-programs)
-(defvar lsp--cur-workspace)
-(defvar lsp-enabled-clients)
-(defvar lsp-keep-workspace-alive)
-(defvar lsp-mode)
-(defvar heurigraph-lsp--registered nil)
-(defvar-local heurigraph-eglot--server nil)
-(defvar heurigraph-lsp-extra-project-file-functions nil
-  "Functions that recognize module-owned project files.
-Each function receives FILE, MODE, and project ROOT and should return non-nil
-when the language server should manage that file.")
+(defvar-local heurigraph-lsp--server nil
+  "Eglot server started by Heurigraph in this buffer.")
+(defvar-local heurigraph-lsp--argv nil "Exact launch command requested for this buffer.")
 
 (defcustom heurigraph-lsp-trace nil
-  "When non-nil, start `heurigraph lsp --trace'.
-Protocol traffic is written to stderr, never the JSON-RPC stdout stream."
+  "When non-nil, start `heurigraph lsp --trace'."
   :type 'boolean
   :group 'heurigraph)
 
 (defcustom heurigraph-lsp-auto-start t
-  "When non-nil, start persistent lsp-mode clients in Heurigraph buffers.
-Typst buffers enable both Tinymist and Heurigraph.  Other supported buffers
-enable Heurigraph alone when LSP startup is requested.  The clients remain
-alive while other buffers in the same repository are visited."
+  "When non-nil, start Heurigraph Eglot support in governed Typst buffers."
   :type 'boolean
   :group 'heurigraph)
 
 (defun heurigraph-lsp--command ()
   "Return the command used to launch the Heurigraph language server."
   (append (list (heurigraph--require-executable) "lsp")
-          (when heurigraph-lsp-trace (list "--trace"))))
+          (when heurigraph-lsp-trace '("--trace"))))
 
-(defun heurigraph-lsp--project-p (filename mode)
-  "Return non-nil when FILENAME in MODE is a Heurigraph authoring file."
-  (when-let* ((filename filename)
-              (root (locate-dominating-file (file-name-directory filename)
-                                            "heurigraph.toml")))
-    (let ((file (expand-file-name filename)))
-      (or (memq mode '(typst-mode typst-ts-mode))
-          (run-hook-with-args-until-success
-           'heurigraph-lsp-extra-project-file-functions file mode root)))))
+(cl-defmethod project-root ((project (head heurigraph-forest)))
+  "Return the root directory stored in Heurigraph PROJECT."
+  (cdr project))
 
-(defun heurigraph-lsp-register-lsp-mode ()
-  "Register Heurigraph as an add-on client with lsp-mode.
-This is safe to call repeatedly.  The client activates only in Typst and
-module-recognized buffers governed by `heurigraph.toml'."
-  (interactive)
-  (require 'lsp-mode)
-  (unless heurigraph-lsp--registered
-    (lsp-register-client
-     (make-lsp-client
-      :new-connection (lsp-stdio-connection #'heurigraph-lsp--command)
-      :activation-fn #'heurigraph-lsp--project-p
-      :server-id 'heurigraph
-      :priority -1
-      :add-on? t
-      :multi-root nil))
-    (setq heurigraph-lsp--registered t))
-  (when (called-interactively-p 'interactive)
-    (message "Heurigraph registered as an lsp-mode add-on")))
+(defun heurigraph-lsp--forest-root (&optional path)
+  "Return the nearest Heurigraph project containing PATH."
+  (when-let* ((path (or path buffer-file-name default-directory))
+              (directory (if (file-directory-p path)
+                             path
+                           (file-name-directory path)))
+              (root (locate-dominating-file directory "heurigraph.toml")))
+    (file-name-as-directory (expand-file-name root))))
 
-(with-eval-after-load 'lsp-mode
-  (heurigraph-lsp-register-lsp-mode))
+(defun heurigraph-lsp--project-find (directory)
+  "Return a Heurigraph project for the forest containing DIRECTORY."
+  (when-let ((root (heurigraph-lsp--forest-root directory)))
+    (cons 'heurigraph-forest root)))
 
-(defun heurigraph-lsp--eglot-managed-p ()
-  "Return non-nil when Eglot already manages the current buffer."
-  (and (featurep 'eglot)
-       (fboundp 'eglot-managed-p)
-       (eglot-managed-p)))
+(defun heurigraph-lsp--configure-project-root ()
+  "Make the nearest Heurigraph project authoritative in this buffer."
+  (unless (heurigraph-lsp--forest-root)
+    (user-error "This buffer is not governed by heurigraph.toml"))
+  (add-hook 'project-find-functions #'heurigraph-lsp--project-find nil t)
+  (project-root (project-current nil default-directory)))
 
-(defun heurigraph-lsp--requested-clients ()
-  "Return lsp-mode client ids required by the current buffer."
-  (if (memq major-mode '(typst-mode typst-ts-mode))
-      '(tinymist heurigraph)
-    '(heurigraph)))
+(defun heurigraph-lsp--active-p ()
+  "Return non-nil for an active Heurigraph server in the current buffer."
+  (and heurigraph-lsp--server
+       (featurep 'eglot)
+       (eglot-managed-p)
+       (eq heurigraph-lsp--server (eglot-current-server))))
+
+(defun heurigraph-lsp--remember-server ()
+  "Capture the server once Eglot finishes its deferred connection."
+  (when-let* ((server (and (eglot-managed-p) (eglot-current-server)))
+              (process (jsonrpc--process server)))
+    (when (and (processp process) heurigraph-lsp--argv
+               (equal (process-command process) heurigraph-lsp--argv))
+      (setq heurigraph-lsp--server server)
+      (remove-hook 'eglot-managed-mode-hook #'heurigraph-lsp--remember-server t))))
 
 ;;;###autoload
 (defun heurigraph-lsp-ensure ()
-  "Ensure the appropriate persistent Heurigraph lsp-mode clients are running.
-In Typst buffers this explicitly enables both Tinymist and the Heurigraph
-add-on.  Existing workspaces for the repository are reused rather than
-restarted."
+  "Start or reuse `heurigraph lsp' through Eglot for this buffer."
   (interactive)
   (cond
-   ((heurigraph-lsp--eglot-managed-p)
-    (if (called-interactively-p 'interactive)
-        (user-error
-         "Eglot already manages this buffer; use lsp-mode for concurrent Tinymist and Heurigraph")
-      (message
-       "Heurigraph LSP not started: Eglot owns this buffer; use lsp-mode for both servers")
-      nil))
-   ((not (require 'lsp-mode nil t))
+   ((heurigraph-lsp--active-p) t)
+   ((not (require 'eglot nil t))
     (when (called-interactively-p 'interactive)
-      (user-error "Install lsp-mode to run Tinymist and Heurigraph together"))
+      (user-error "Eglot is unavailable in this Emacs installation"))
+    nil)
+   ((eglot-managed-p)
+    (when (called-interactively-p 'interactive)
+      (user-error "Another Eglot server already manages this buffer"))
     nil)
    (t
-    ;; Loading the built-in lsp-mode Typst client here makes the two-client
-    ;; contract explicit instead of depending on package autoload order.
-    (when (memq major-mode '(typst-mode typst-ts-mode))
-      (require 'lsp-typst nil t))
-    (heurigraph-lsp-register-lsp-mode)
-    (setq-local lsp-enabled-clients
-                (delete-dups
-                 (append (heurigraph-lsp--requested-clients)
-                         (and (boundp 'lsp-enabled-clients)
-                              lsp-enabled-clients))))
-    (setq-local lsp-keep-workspace-alive t)
-    (lsp-deferred)
+    (heurigraph-lsp--configure-project-root)
+    (setq heurigraph-lsp--argv (heurigraph-lsp--command))
+    (setq-local eglot-server-programs
+                (cons (cons major-mode heurigraph-lsp--argv)
+                      eglot-server-programs))
+    (add-hook 'eglot-managed-mode-hook #'heurigraph-lsp--remember-server nil t)
+    (eglot-ensure)
+    (heurigraph-lsp--remember-server)
     t)))
 
 ;;;###autoload
 (defun heurigraph-lsp-start ()
-  "Start persistent editor intelligence for the current Heurigraph buffer.
-Typst buffers start Tinymist and Heurigraph together through lsp-mode."
+  "Start Heurigraph editor intelligence for the current buffer."
   (interactive)
   (heurigraph-lsp-ensure))
 
 ;;;###autoload
-(defun heurigraph-eglot-enable ()
-  "Use `heurigraph lsp' as Eglot's server for Typst in this session.
-The command is limited to Typst buffers governed by `heurigraph.toml'.  Eglot
-normally runs one server per buffer, so stop an existing server first when
-switching from Tinymist.  lsp-mode is preferred when both servers are wanted."
-  (interactive)
-  (require 'eglot)
-  (unless (memq major-mode '(typst-mode typst-ts-mode))
-    (user-error "Heurigraph's Eglot helper is only for Typst buffers"))
-  (unless (and buffer-file-name
-               (locate-dominating-file (file-name-directory buffer-file-name)
-                                       "heurigraph.toml"))
-    (user-error "This Typst buffer is not governed by heurigraph.toml"))
-  (when (bound-and-true-p lsp-mode)
-    (user-error "LSP mode already manages this buffer; do not combine it with Eglot"))
-  (when (eglot-managed-p)
-    (user-error "Eglot already manages this buffer; stop it before selecting Heurigraph"))
-  (let ((entry `((typst-ts-mode typst-mode)
-                 . ,(heurigraph-lsp--command))))
-    (setq-local eglot-server-programs
-          (cons entry
-                (seq-remove
-                 (lambda (candidate)
-                   (let ((key (car-safe candidate)))
-                     (or (eq key 'typst-mode)
-                         (eq key 'typst-ts-mode)
-                         (and (listp key)
-                              (or (memq 'typst-ts-mode key)
-                                  (memq 'typst-mode key))))))
-                 eglot-server-programs))))
-  (eglot-ensure)
-  (setq heurigraph-eglot--server (eglot-current-server))
-  (message "Eglot is using Heurigraph for this Typst buffer"))
-
-(defun heurigraph-lsp--eglot-server-active-p ()
-  "Return non-nil when Eglot still has the server selected by Heurigraph."
-  (and heurigraph-eglot--server
-       (featurep 'eglot)
-       (eq heurigraph-eglot--server (eglot-current-server))))
-
-(defun heurigraph-lsp--workspace-by-server-id (server-id)
-  "Return the current lsp-mode workspace belonging to SERVER-ID."
-  (when (and (featurep 'lsp-mode) (fboundp 'lsp-workspaces))
-    (seq-find
-     (lambda (workspace)
-       (eq (lsp--client-server-id (lsp--workspace-client workspace))
-           server-id))
-     (lsp-workspaces))))
-
-;;;###autoload
 (defun heurigraph-lsp-status ()
-  "Report whether Tinymist and Heurigraph are active in the current buffer."
+  "Report whether Heurigraph Eglot support is active in this buffer."
   (interactive)
-  (let ((tinymist (heurigraph-lsp--workspace-by-server-id 'tinymist))
-        (heurigraph (heurigraph-lsp--workspace-by-server-id 'heurigraph))
-        (eglot (heurigraph-lsp--eglot-server-active-p)))
-    (message "Tinymist: %s; Heurigraph: %s"
-             (if tinymist "running" "not connected")
-             (cond (heurigraph "running (lsp-mode)")
-                   (eglot "running (Eglot)")
-                   (t "not connected")))
-    (or heurigraph eglot)))
+  (message "Heurigraph LSP: %s"
+           (if (heurigraph-lsp--active-p) "running" "not connected"))
+  (heurigraph-lsp--active-p))
 
 ;;;###autoload
 (defun heurigraph-lsp-refresh ()
-  "Ask the active Heurigraph language server to rebuild its workspace index."
+  "Ask the active Heurigraph server to rebuild its workspace index."
   (interactive)
   (unless (heurigraph-lsp-refresh-if-active)
-    (user-error "No active language server in this buffer")))
+    (user-error "No active Heurigraph server in this buffer")))
 
 (defun heurigraph-lsp-refresh-if-active ()
-  "Refresh the active Heurigraph workspace, returning non-nil when sent.
-Unlike `heurigraph-lsp-refresh', this is safe for creation helpers to call when
-the language server integration is installed but inactive in the current
-buffer."
-  (condition-case error
-      (cond
-       ((and (featurep 'lsp-mode)
-             (bound-and-true-p lsp-mode)
-             (heurigraph-lsp--workspace-by-server-id 'heurigraph))
-        (let ((lsp--cur-workspace
-               (heurigraph-lsp--workspace-by-server-id 'heurigraph)))
-          (lsp-send-execute-command "heurigraph.refresh" []))
-        t)
-       ((heurigraph-lsp--eglot-server-active-p)
-        (jsonrpc-request heurigraph-eglot--server
-                         :workspace/executeCommand
-                         '(:command "heurigraph.refresh" :arguments []))
-        t)
-       (t nil))
-    (error
-     (message "Heurigraph created the file, but LSP refresh failed: %s"
-              (error-message-string error))
-     nil)))
+  "Refresh the active Heurigraph workspace and return non-nil when sent."
+  (when (heurigraph-lsp--active-p)
+    (condition-case error
+        (progn
+          (jsonrpc-request heurigraph-lsp--server
+                           :workspace/executeCommand
+                           '(:command "heurigraph.refresh" :arguments []))
+          t)
+      (error
+       (message "Heurigraph LSP refresh failed: %s"
+                (error-message-string error))
+       nil))))
 
 (provide 'heurigraph-lsp)
 
