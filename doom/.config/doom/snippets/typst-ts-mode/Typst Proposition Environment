@@ -3,7 +3,7 @@
 # key: ct.pr
 # group: cTheorems
 # --
-#let ${1:`(mho/gen-id-snippet)`} = proposition(number: "$1")[
+#let ${1:`(progn (require 'org-id) (concat "n" (replace-regexp-in-string "-" "" (org-id-new))))`} = proposition(number: "$1")[
 $0
 ]
 #$1 // Proposition

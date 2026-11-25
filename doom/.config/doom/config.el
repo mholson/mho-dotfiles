@@ -1,10 +1,6 @@
-;; (after! packageName
-;;   ...)
+;;; config.el -*- lexical-binding: t; -*-
 
-;; (use-package! packageName
-;;   :hook (...)
-;;   :init (...)
-;;   :config (...))
+;; Generated from config.org.
 
 (setq user-full-name "Mark Olson"
       user-mail-address "41911657+mholson@users.noreply.github.com")
@@ -16,15 +12,13 @@
 
 (setq delete-by-moving-to-trash t)
 
-(setq auto-save-default t)
-
 (setq undo-limit 80000000)
 
 (setq evil-want-fine-undo t)
 
-;; (setq org-directory
-;;       (expand-file-name
-;;        "~/Library/Mobile Documents/iCloud~com~appsonthemove~beorg/Documents/"))
+(setq org-directory (expand-file-name "~/Library/Mobile Documents/com~apple~CloudDocs/org/")
+      org-agenda-files (list org-directory
+                             (expand-file-name "journal/" org-directory)))
 
 (setq display-line-numbers-type 'relative)
 
@@ -46,14 +40,10 @@
 
 (setq doom-big-font (font-spec :family "Iosevka Nerd Font Mono" :size 32 ))
 
-;;(set-fontset-font t nil "SF Pro Display" nil 'append)
-;;(load! "src/sf.el")
-
 (setq doom-theme 'arctic-archive-dark)
 
 (after! time
   (setq display-time-format "%H:%M  Wk%V"
-        display-time-24hr-format t
         display-time-default-load-average nil)
   (display-time-mode 1))
 
@@ -73,12 +63,6 @@
 (map! :i "C-<" (cmd! (insert "{")))
 
 (map! :leader
-      :desc "mho/gen-id (pop+copy)"
-      "j" #'mho/gen-id
-:desc "Remove ID from pool"
-      "r" #'mho/id-pool-remove-id-prompt)
-
-(map! :leader
       (:prefix ("l" . "link")
        :desc "Clipboard" "c" #'org-cliplink
        :desc "File"      "f" #'mho/org-insert-file-link))
@@ -91,15 +75,43 @@
        :desc "Agenda" "å" #'org-agenda
        :desc "Capture" "c" #'org-capture))
 
-(map! :map org-mode-map
-      :leader
+(map! :leader
       (:prefix ("v" . "Vulpea")
-       :desc "Backlink"       "b" #'vulpea-find-backlink
-       :desc "Clear DB"       "c" #'vulpea-db-clear
-       :desc "Find"           "f" #'vulpea-find
-       :desc "Heading ID"     "h" #'mho/vulpea-get-create-heading-from-pool
-       :desc "Insert (next ID)" "i" #'mho/vulpea-insert-with-next-id
-       :desc "Insert (choose ID)" "j" #'mho/vulpea-insert-with-chosen-id
+       :desc "Find or create note" "f" #'vulpea-find
+       :desc "New note"            "n" #'mho/vulpea-new-note
+       :desc "Insert note link"    "i" #'vulpea-insert
+       :desc "Find backlink"       "b" #'vulpea-find-backlink
+       :desc "Heading ID"          "h" #'org-id-get-create
+       :desc "Toggle sidebar"      "s" #'vulpea-ui-sidebar-toggle
+       :desc "Note collection"     "c" #'vulpea-ui-collection
+       :desc "Today's journal"     "j" #'vulpea-journal-today
+       :desc "Journal for date"    "J" #'vulpea-journal-date
+       :desc "Previous journal"    "[" #'vulpea-journal-previous
+       :desc "Next journal"        "]" #'vulpea-journal-next
+       :desc "Propagate title change" "r" #'vulpea-propagate-title-change
+       (:prefix ("T" . "Journal templates")
+        :desc "Focus"         "f" #'mho-vulpea-journal-focus
+        :desc "Reflection"    "r" #'mho-vulpea-journal-reflection
+        :desc "Weekly review" "w" #'mho-vulpea-journal-weekly-review)
+       (:prefix ("N" . "New library")
+        :desc "Preview"    "p" #'mho-vulpea-library-preview
+        :desc "Initialize empty folder" "i" #'mho-vulpea-library-initialize)
+       (:prefix ("P" . "PARA")
+        :desc "New private area" "A" #'mho-vulpea-para-capture-area
+        :desc "New project"      "p" #'mho-vulpea-para-capture-project
+        :desc "Find area"        "a" #'vulpea-para-find-area
+        :desc "Find project"     "f" #'vulpea-para-find-project
+        :desc "Find resource"    "r" #'vulpea-para-find-resource
+        :desc "Overview"         "g" #'vulpea-para-agenda-main
+        :desc "Area tasks"       "G" #'vulpea-para-agenda-area
+        :desc "Archive project"  "x" #'mho-vulpea-project-archive
+        :desc "Diagnose PARA"    "d" #'vulpea-para-doctor
+        :desc "Backfill agenda"  "b" #'vulpea-para-agenda-backfill)
+       (:prefix ("p" . "website")
+        :desc "New public note" "n" #'mho-vulpea-site-new
+        :desc "Build"           "b" #'mho-vulpea-site-build
+        :desc "Preview"         "p" #'mho-vulpea-site-preview
+        :desc "Export to site"  "e" #'mho-vulpea-site-export)
        (:prefix ("m" . "metadata")
         :desc "Add"    "a" #'vulpea-meta-add
         :desc "Remove" "r" #'vulpea-meta-remove)
@@ -109,7 +121,8 @@
        (:prefix ("t" . "tags")
         :desc "Add"    "a" #'vulpea-buffer-tags-add
         :desc "Remove" "r" #'vulpea-buffer-tags-remove)
-       :desc "Update DB"      "u" #'vulpea-db-sync-full-scan))
+       :desc "Scan library"        "u" #'vulpea-db-sync-full-scan
+       :desc "Diagnose setup"      "d" #'vulpea-doctor))
 
 (map! :n "C-ö r" #'org-transclusion-remove-all
       :n "C-ö a" #'org-transclusion-add)
@@ -119,153 +132,7 @@
       :desc "Org Transclusion Mode"
       "C" #'org-transclusion-mode)
 
-(map! :leader
-      (:prefix ("d" . "Forester")
-       :desc "Find Tree"      "f" #'mho/forester--find-node
-       :desc "Date Insert"    "d" #'mho/forester--date
-       :desc "Link Insert"    "l" #'mho/forester--insert-link
-       :desc "Tree Insert"    "n" #'mho/forester--create-tree-file
-       :desc "Subtree Insert" "s" #'mho/insert-subtree
-       :desc "Weeknote"       "w" #'mho/forester--create-weeknote-file))
-
-;; Load eagerly so SPC e is available before visiting a Typst buffer.
-(add-to-list 'load-path "~/.config/doom/src/heurigraph")
-(require 'heurigraph-mode)
-(setq heurigraph-executable "heurigraph"
-      heurigraph-notes-directory "~/Kognity/kogs"
-      heurigraph-new-public-by-default t)
-(heurigraph-doom-setup-keybindings)
-
-;; Heurigraph uses built-in Eglot; no lsp-mode registration is needed.
-(add-hook 'typst-ts-mode-hook #'heurigraph-enable-for-typst)
-(add-hook 'typst-mode-hook #'heurigraph-enable-for-typst)
-(add-hook 'toml-ts-mode-hook #'heurigraph-enable-for-ontology)
-(add-hook 'conf-toml-mode-hook #'heurigraph-enable-for-ontology)
-(add-hook 'toml-mode-hook #'heurigraph-enable-for-ontology)
-
-(defun mho/forester--date ()
-  "Insert current date in Typst \\date{...} format at point.
-Example: \\date{2025-07-25T09:10:46+02:00}"
-  (interactive)
-  (let ((raw (format-time-string "%Y-%m-%dT%H:%M:%S%z")))
-    (insert (format "\\date{%s:%s}"
-                    (substring raw 0 -2)
-                    (substring raw -2)))))
-
-(defun mho/forester--create-weeknote-file ()
-  "Create a weeknotes .tree file named YYYY-Www.tree without using a generated ID."
-  (interactive)
-  (let* ((target-dir "~/Documents/roam-kb/mho-forest/trees/weeknotes/")
-         (current-time (current-time))
-         (week-id (format-time-string "%Y-W%V" current-time))
-         (filename (expand-file-name (concat week-id ".tree") target-dir))
-         (title (format "Weeknotes %s" week-id))
-         (iso-datetime
-          (let ((raw (format-time-string "%Y-%m-%dT%H:%M:%S%z" current-time)))
-            (concat (substring raw 0 -2) ":" (substring raw -2))))
-         (author "markholson")
-         (template (format "\\title{%s}\n\\date{%s}\n\\author{%s}\n"
-                           title iso-datetime author)))
-    (if (file-exists-p filename)
-        (user-error "File already exists: %s" filename)
-      (find-file filename)
-      (insert template)
-      (save-buffer)
-      (message "Created weeknotes file: %s" filename))))
-
-(defun mho/forester--create-tree-file ()
-  "Create a new .tree file using a pool-generated ID and a user-provided title."
-  (interactive)
-  (let* ((target-dir "~/Documents/roam-kb/mho-forest/trees/")
-         (full-id (mho/id-pool-pop))
-         (title (read-string "Enter title: "))
-         (filename (expand-file-name (concat full-id ".tree") target-dir))
-         (iso-datetime
-          (let ((raw (format-time-string "%Y-%m-%dT%H:%M:%S%z" (current-time))))
-            (concat (substring raw 0 -2) ":" (substring raw -2))))
-         (author "markholson")
-         (template (format "\\title{%s}\n\\date{%s}\n\\author{%s}\n"
-                           title iso-datetime author)))
-    (when (file-exists-p filename)
-      (user-error "File already exists: %s" filename))
-    (find-file filename)
-    (insert template)
-    (save-buffer)
-    (message "Created tree file: %s" filename)))
-
-(defun mho/forester--get-title-from-file (filepath)
-  "Extract \\title{...} from the first line(s) of FILEPATH."
-  (with-temp-buffer
-    (insert-file-contents-literally filepath nil 0 400)
-    (goto-char (point-min))
-    (if (re-search-forward "\\\\title{\\([^}]+\\)}" nil t)
-        (string-trim (match-string 1))
-      "Untitled")))
-
-(defun mho/forester--collect-tree-files (root)
-  "Return alist of (display . full-path) for all .tree files under ROOT.
-Display format: ID | Title
-If the filename isn't 4 chars, display #### for the short-ID column."
-  (let ((files (directory-files-recursively root "\\.tree\\'")))
-    (mapcar (lambda (file)
-              (let* ((basename (file-name-base (file-name-nondirectory file)))
-                     (id (if (= (length basename) 4) basename "####"))
-                     (title (mho/forester--get-title-from-file file))
-                     (display (format "%s | %s" id title)))
-                (cons display file)))
-            files)))
-
-(defun mho/forester--insert-link (&optional style)
-  "Fuzzy-select a Forester .tree file and insert a link at point.
-STYLE:
-- 'transclude => \\transclude{ID}
-- 'markdown   => [Title](ID)
-If STYLE is nil, prompt."
-  (interactive)
-  (require 'consult)
-  (let* ((style (or style
-                    (intern (completing-read "Link style: "
-                                             '("transclude" "markdown")
-                                             nil t))))
-         (root (or (and (fboundp 'project-current)
-                        (project-current)
-                        (project-root (project-current)))
-                   (read-directory-name "Forester root: ")))
-         (candidates (mho/forester--collect-tree-files root))
-         (selection (consult--read (mapcar #'car candidates)
-                                   :prompt "Link to: "
-                                   :require-match t)))
-    (when selection
-      (let* ((filepath (cdr (assoc selection candidates)))
-             (id (file-name-base (file-name-nondirectory filepath))) ;; use full ID
-             (title (mho/forester--get-title-from-file filepath)))
-        (insert
-         (pcase style
-           ('transclude (format "\\transclude{%s}" id))
-           ('markdown   (format "[%s](%s)" title id))
-           (_ (user-error "Unknown style: %s" style))))))))
-
-(defun mho/forester--find-node ()
-  "Fuzzy-find a Forester .tree file by title or filename using consult."
-  (interactive)
-  (require 'consult)
-  (let* ((root (or (and (fboundp 'project-current)
-                        (project-current)
-                        (project-root (project-current)))
-                   (read-directory-name "Forester root: ")))
-         (candidates (mho/forester--collect-tree-files root))
-         (selection (consult--read (mapcar #'car candidates)
-                                   :prompt "Forester Node: "
-                                   :require-match t)))
-    (when selection
-      (find-file (cdr (assoc selection candidates))))))
-
-(defun mho/insert-subtree ()
-  "Insert a \\subtree[ID]{\\title{...}} block using a pool 4-character ID."
-  (interactive)
-  (let* ((full-id (mho/id-pool-pop))
-         (title (read-string "Subtree title: ")))
-    (insert (format "\\subtree[%s]{\n  \\title{%s}\n\n}\n" full-id title))))
+(add-to-list 'load-path (expand-file-name "src/" doom-user-dir))
 
 (defun mho/yaml-outline-indent-setup ()
   "Enable outline-indent with 2-space YAML-friendly defaults."
@@ -281,397 +148,20 @@ If STYLE is nil, prompt."
 (defun mho/task-archives-to-datetree ()
   "Archive all completed tasks in the current Org file into a date tree."
   (interactive)
-  (org-map-entries #'org-archive-subtree "/DONE|XOUT" 'file))
+  (org-map-entries
+   (lambda ()
+     (setq org-map-continue-from (point))
+     (org-archive-subtree))
+   "/DONE|XOUT" 'file))
 
-(require 'subr-x)
-
-(defgroup mho-ids nil
-  "Pool-based 4-character IDs."
-  :group 'org)
-
-(defcustom mho/id-pool-file
-  (expand-file-name "TAGS-tagids.txt" "~/Documents/roam-kb/resources/code/shell/")
-  "File containing one unused ID per line."
-  :type 'file)
-
-(defcustom mho/id-pool-regex "\\`[A-Za-z0-9]\\{4\\}\\'"
-  "Regex an ID must match."
-  :type 'regexp)
-
-(defun mho/id--normalize (id)
-  (upcase (string-trim (or id ""))))
-
-(defun mho/id--valid-p (id)
-  (and (stringp id)
-       (string-match-p mho/id-pool-regex (mho/id--normalize id))))
-
-(defun mho/id--assert-pool-readable ()
-  (unless (file-readable-p mho/id-pool-file)
-    (user-error "ID pool file not readable: %s" mho/id-pool-file)))
-
-(defun mho/id-pool--read-lines ()
-  (mho/id--assert-pool-readable)
-  (with-temp-buffer
-    (insert-file-contents mho/id-pool-file)
-    (split-string (buffer-string) "\n" t)))
-
-(defun mho/id-pool-list ()
-  "Return normalized, valid IDs in the pool."
-  (let (out)
-    (dolist (line (mho/id-pool--read-lines))
-      (let ((id (mho/id--normalize line)))
-        (when (mho/id--valid-p id)
-          (push id out))))
-    (nreverse out)))
-
-(defun mho/id-pool-peek ()
-  "Return first valid ID without modifying pool."
-  (let* ((lines (mho/id-pool--read-lines))
-         (id (mho/id--normalize (or (car lines) ""))))
-    (when (string-empty-p id)
-      (user-error "ID pool is empty: %s" mho/id-pool-file))
-    (unless (mho/id--valid-p id)
-      (user-error "Invalid ID in pool: %S (expected %s)" id mho/id-pool-regex))
-    id))
-
-(defun mho/id-pool-has-id-p (id)
-  "Non-nil if ID exists as a full line in the pool file."
-  (setq id (mho/id--normalize id))
-  (unless (mho/id--valid-p id)
-    (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
-  (with-temp-buffer
-    (insert-file-contents mho/id-pool-file)
-    (goto-char (point-min))
-    (re-search-forward (concat "^" (regexp-quote id) "$") nil t)))
-
-(defun mho/id-pool-remove-id (id)
-  "Remove ID from pool file as a full line. Return t if removed."
-  (setq id (mho/id--normalize id))
-  (unless (mho/id--valid-p id)
-    (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
-  (let ((removed nil))
-    (with-temp-buffer
-      (insert-file-contents mho/id-pool-file)
-      (goto-char (point-min))
-      (when (re-search-forward (concat "^" (regexp-quote id) "$") nil t)
-        (delete-region (line-beginning-position)
-                       (min (point-max) (1+ (line-end-position))))
-        (setq removed t))
-      (when removed
-        (write-region (point-min) (point-max) mho/id-pool-file nil 'silent)))
-    removed))
-
-(defun mho/id-pool-pop ()
-  "Pop first ID from pool file (remove first line) and return it."
-  (let ((id (mho/id-pool-peek)))
-    (with-temp-buffer
-      (insert-file-contents mho/id-pool-file)
-      (goto-char (point-min))
-      (delete-region (line-beginning-position)
-                     (min (point-max) (1+ (line-end-position))))
-      (write-region (point-min) (point-max) mho/id-pool-file nil 'silent))
-    id))
-
-;;;; ------------------------------------------------------------------------
-;;;; Reservation + Commit model
-;;;; ------------------------------------------------------------------------
-
-;; Buffer-local = capture-safe and avoids stale global state.
-(defvar-local mho/id-reserved nil
-  "Reserved pool ID for this capture/note creation (commit on success).")
-
-(defvar mho/id-use-pool nil
-  "When non-nil, `org-id-new` may allocate IDs from the pool (scoped).")
-
-(defmacro mho/with-id-pool (&rest body)
-  "Run BODY with pool-based org-id allocation enabled."
-  `(let ((mho/id-use-pool t))
-     ,@body))
-
-(defun mho/id-reserve (&optional id)
-  "Reserve ID (default: next from pool) for the current buffer/session.
-Does NOT remove it from the pool yet."
-  (let ((chosen (mho/id--normalize (or id (mho/id-pool-peek)))))
-    (unless (mho/id--valid-p chosen)
-      (user-error "Invalid ID: %S (expected %s)" chosen mho/id-pool-regex))
-    (unless (mho/id-pool-has-id-p chosen)
-      (user-error "ID %s is not in the pool file" chosen))
-    (setq mho/id-reserved chosen)
-    (message "Reserved ID %s (will remove from pool on success)" chosen)
-    chosen))
-
-(defun mho/id-commit ()
-  "Commit reserved ID by removing it from the pool (if any)."
-  (when (and (stringp mho/id-reserved)
-             (mho/id--valid-p mho/id-reserved))
-    (mho/id-pool-remove-id mho/id-reserved)
-    (message "Committed (removed) ID from pool: %s" mho/id-reserved)
-    (setq mho/id-reserved nil)))
-
-(defun mho/id-abort ()
-  "Abort reservation (do not remove from pool)."
-  (setq mho/id-reserved nil))
-
-;;;; ------------------------------------------------------------------------
-;;;; org-id-new integration (uses reserved ID first, then pool if scoped)
-;;;; ------------------------------------------------------------------------
-
-(with-eval-after-load 'org-id
-  (setq org-id-method 'org))
-
-(defun mho/org-id-new-around (orig-fn &optional prefix)
-  "org-id-new advice:
-- If a reservation exists and PREFIX is empty: use it (do not commit here).
-- Else if pool mode is enabled: pop a new pool ID.
-- Else fall back to ORIG-FN."
-  (let ((pfx (or prefix "")))
-    (cond
-     ;; Reserved ID has top priority (only for empty prefix).
-     ((and (string-empty-p pfx) (stringp mho/id-reserved) (mho/id--valid-p mho/id-reserved))
-      mho/id-reserved)
-
-     ;; Pool mode: allocate from pool.
-     ((and mho/id-use-pool)
-      (let ((id (mho/id-pool-pop)))
-        (if (and prefix (not (string-empty-p pfx)))
-            (concat prefix id)
-          id)))
-
-     ;; Default behavior.
-     (t
-      (funcall orig-fn prefix)))))
-
-(with-eval-after-load 'org-id
-  (advice-remove 'org-id-new #'mho/org-id-new-around)
-  (advice-add 'org-id-new :around #'mho/org-id-new-around))
-
-;;;; ------------------------------------------------------------------------
-;;;; org-capture: commit on finalize, abort on kill
-;;;; ------------------------------------------------------------------------
-
-(with-eval-after-load 'org-capture
-  ;; Make pool mode active during org-capture (but nowhere else).
-  (advice-add
-   'org-capture :around
-   (lambda (orig &rest args)
-     (mho/with-id-pool
-      (apply orig args))))
-
-  ;; Commit only if capture finishes successfully.
-  (add-hook 'org-capture-after-finalize-hook #'mho/id-commit)
-
-  ;; If capture is killed/aborted, do not remove.
-  (add-hook 'org-capture-kill-hook #'mho/id-abort))
-
-;;;; ------------------------------------------------------------------------
-;;;; org-roam helper: stable ID for filename + :ID:
-;;;; (uses org-id-new, which now respects reservation/pool scoping)
-;;;; ------------------------------------------------------------------------
-
-(defvar-local mho/org-roam-capture-id nil
-  "Cached ID for org-roam capture buffer.")
-
-(defun mho/org-roam-id ()
-  "Return cached capture ID, generating it once if needed."
-  (or mho/org-roam-capture-id
-      (setq mho/org-roam-capture-id (org-id-new ""))))
-
-(with-eval-after-load 'org-capture
-  (add-hook 'org-capture-after-finalize-hook (lambda () (setq mho/org-roam-capture-id nil)))
-  (add-hook 'org-capture-kill-hook           (lambda () (setq mho/org-roam-capture-id nil))))
-
-;;;; ------------------------------------------------------------------------
-;;;; Vulpea convenience commands
-;;;; ------------------------------------------------------------------------
-
-(defun mho/vulpea-insert-with-next-id ()
-  "Reserve next pool ID and run `vulpea-insert` in pool mode."
-  (interactive)
+(defun mho/vulpea-new-note (title)
+  "Create a Vulpea note with TITLE and visit it."
+  (interactive "sNote title: ")
   (require 'vulpea)
-  (mho/id-reserve (mho/id-pool-peek))
-  (mho/with-id-pool
-   (call-interactively #'vulpea-insert)))
-
-(defun mho/vulpea-insert-with-chosen-id (id)
-  "Reserve chosen pool ID and run `vulpea-insert` in pool mode."
-  (interactive
-   (list (completing-read "Vulpea ID: " (mho/id-pool-list) nil t)))
-  (require 'vulpea)
-  (mho/id-reserve id)
-  (mho/with-id-pool
-   (call-interactively #'vulpea-insert)))
-
-;;;; ------------------------------------------------------------------------
-;;;; Vulpea safety net: if vulpea creates a note outside org-capture finalize,
-;;;; commit when we can confirm creation succeeded (defensive, args-safe).
-;;;; ------------------------------------------------------------------------
-
-(defun mho/vulpea-create-around (orig-fn &rest args)
-  "Commit reserved ID after successful `vulpea-create` when we can prove it."
-  (let ((pending mho/id-reserved)
-        (note (apply orig-fn args)))
-    (when (and (stringp pending)
-               (mho/id--valid-p pending)
-               note
-               (fboundp 'vulpea-note-id)
-               (fboundp 'vulpea-note-path)
-               (string= (mho/id--normalize pending)
-                        (mho/id--normalize (or (vulpea-note-id note) "")))
-               (file-exists-p (vulpea-note-path note)))
-      ;; Only commit if vulpea actually created the note with our ID.
-      (mho/id-commit))
-    note))
-
-(with-eval-after-load 'vulpea
-  (advice-remove 'vulpea-create #'mho/vulpea-create-around)
-  (advice-add 'vulpea-create :around #'mho/vulpea-create-around))
-
-;;;; ------------------------------------------------------------------------
-;;;; Manual helpers
-;;;; ------------------------------------------------------------------------
-
-(defun mho/gen-id ()
-  "Preview next ID, confirm, then pop it and copy to kill-ring."
-  (interactive)
-  (let ((next (mho/id-pool-peek)))
-    (when (yes-or-no-p (format "Use and remove ID '%s' from pool and copy it?" next))
-      (let ((id (mho/id-pool-pop)))
-        (kill-new id)
-        (message "Copied ID: %s" id)
-        id))))
-
-(defun mho/id-pool-remove-id-prompt (id)
-  "Prompt for an ID, confirm, then remove it from the pool."
-  (interactive
-   (list
-    (mho/id--normalize
-     (completing-read
-      "Remove ID from pool: "
-      (mho/id-pool-list)
-      nil nil nil nil
-      (ignore-errors (mho/id-pool-peek))))))
-  (setq id (mho/id--normalize id))
-  (cond
-   ((string-empty-p id) (user-error "No ID provided"))
-   ((not (mho/id--valid-p id))
-    (user-error "Invalid ID: %S (expected %s)" id mho/id-pool-regex))
-   ((not (mho/id-pool-has-id-p id))
-    (user-error "ID %s is not in the pool file" id))
-   ((yes-or-no-p (format "Remove ID %s from pool?" id))
-    (mho/id-pool-remove-id id)
-    (message "Removed ID from pool: %s" id))))
-
-;;;; Optional Doom keybind
-
-;;;; ------------------------------------------------------------------------
-;;;; Heading IDs (explicit pool pop + register)
-;;;; ------------------------------------------------------------------------
-
-(defun mho/vulpea-get-create-heading-from-pool ()
-  "Assign a fresh pool ID to the current heading and register it."
-  (interactive)
-  (require 'org-id)
-  (let ((id (mho/id-pool-pop)))
-    (org-entry-put (point) "ID" id)
-    (when-let ((f (buffer-file-name)))
-      (org-id-add-location id f))
-    (message "Heading ID set: %s" id)
-    id))
-
-(defun mho/org--slugify-underscore (s)
-  "Convert S to a lowercase underscore_slug for filenames."
-  (let* ((s (downcase (string-trim (or s ""))))
-         (s (replace-regexp-in-string "[^a-z0-9]+" "_" s))
-         (s (replace-regexp-in-string "_\\{2,\\}" "_" s))
-         (s (replace-regexp-in-string "\\`_+\\|_+\\'" "" s)))
-    s))
-
-(defun mho/org--extract-id-and-title ()
-  "Extract file-level :ID: and #+title: from current buffer.
-Returns plist (:id ID :title TITLE)."
-  (save-excursion
-    (goto-char (point-min))
-    (let ((case-fold-search t)
-          id title)
-      (when (re-search-forward "^[ \t]*:ID:\\s-+\\([A-Za-z0-9-]+\\)" nil t)
-        (setq id (match-string 1)))
-      (goto-char (point-min))
-      (when (re-search-forward "^[ \t]*#\\+TITLE:\\s-*\\(.+\\S-\\)\\s-*$" nil t)
-        (setq title (match-string 1)))
-      (list :id id :title title))))
-
-(defun mho/org--read-file-preamble (file)
-  "Return plist (:id ID :title TITLE) by scanning FILE quickly."
-  (with-temp-buffer
-    (insert-file-contents file nil 0 4096)
-    (delay-mode-hooks (org-mode))
-    (mho/org--extract-id-and-title)))
-
-(defun mho/org--make-new-basename (id title)
-  "Build base filename: ID or ID--slug_title (underscored) if title exists."
-  (unless (and id (not (string-empty-p (string-trim id))))
-    (error "No :ID: found"))
-  (let* ((title (string-trim (or title "")))
-         (slug  (mho/org--slugify-underscore title)))
-    (if (string-empty-p slug)
-        id
-      (format "%s--%s" id slug))))
-
-(defun mho/org--unique-path (path)
-  "If PATH exists, append _2, _3, ... before extension until unique."
-  (if (not (file-exists-p path))
-      path
-    (let* ((dir (file-name-directory path))
-           (base (file-name-base path))
-           (ext  (file-name-extension path t))
-           (n 2)
-           candidate)
-      (while (progn
-               (setq candidate (expand-file-name (format "%s_%d%s" base n ext) dir))
-               (file-exists-p candidate))
-        (setq n (1+ n)))
-      candidate)))
-
-(defun mho/rename-org-file-based-on-id (&optional file)
-  "Rename an Org FILE (or current Org buffer file) using :ID: and #+title:.
-New base name:
-- ID--title_with_underscores (if title exists)
-- ID                        (if title missing/empty)
-Works in Dired (file at point) or Org buffers."
-  (interactive)
-  (let* ((in-dired (derived-mode-p 'dired-mode))
-         (file (or file
-                   (when in-dired (dired-get-file-for-visit))
-                   (buffer-file-name))))
-    (unless (and file (file-exists-p file))
-      (error "No file to rename"))
-    (unless (string-match-p "\\.org\\'" file)
-      (error "Not an .org file: %s" file))
-    (let* ((meta (if (and (not in-dired) (derived-mode-p 'org-mode))
-                     (mho/org--extract-id-and-title)
-                   (mho/org--read-file-preamble file)))
-           (id (plist-get meta :id))
-           (title (plist-get meta :title))
-           (new-base (mho/org--make-new-basename id title))
-           (dir (file-name-directory file))
-           (new-path (expand-file-name (concat new-base ".org") dir))
-           (new-path (mho/org--unique-path new-path))
-           (old-path file))
-      (rename-file old-path new-path 1)
-      (cond
-       (in-dired
-        (revert-buffer)
-        (dired-goto-file new-path)
-        (message "Renamed: %s → %s" old-path new-path))
-       ((derived-mode-p 'org-mode)
-        (set-visited-file-name new-path t t)
-        (rename-buffer (file-name-nondirectory new-path) t)
-        (save-buffer)
-        (message "Renamed buffer+file: %s" (file-name-nondirectory new-path)))
-       (t
-        (message "Renamed file: %s" new-path))))))
-
-(global-set-key (kbd "C-c r") #'mho/rename-org-file-based-on-id)
+  (setq title (string-trim title))
+  (when (string-empty-p title)
+    (user-error "A note needs a title"))
+  (vulpea-visit (vulpea-create title)))
 
 (add-hook 'yaml-mode-hook    #'mho/yaml-outline-indent-setup)
 (add-hook 'yaml-ts-mode-hook #'mho/yaml-outline-indent-setup)
@@ -683,73 +173,8 @@ Works in Dired (file at point) or Org buffers."
 (setq org-hide-emphasis-markers t)
 
 (after! org-capture
-  (defvar mho/work-file (expand-file-name "work.org" org-directory))
-  (defvar mho/home-file (expand-file-name "home.org" org-directory))
-
-  (setq org-capture-templates
-        `(
-          ("w" "Work")
-          ("h" "Home")
-
-          ("wi" "Work → Inbox (Todo)" entry
-           (file+headline ,mho/work-file "Inbox")
-           "** TODO %?\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("wp" "Work → Inbox (Project)" entry
-           (file+headline ,mho/work-file "Inbox")
-           "** PROJ %? :project:\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("wl" "Work → Inbox (Link)" entry
-           (file+headline ,mho/work-file "Inbox")
-           "** TODO %? :link:\nSource: %a\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("wa" "Work → Actions (Todo)" entry
-           (file+headline ,mho/work-file "Actions")
-           "** TODO %?\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("wP" "Work → Projects (Project)" entry
-           (file+headline ,mho/work-file "Projects")
-           "** PROJ %? :project:\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("wm" "Work → Meetings" entry
-           (file+headline ,mho/work-file "Meetings")
-           "** %^{Type|1:1|1:many} %^{Topic} :meet:\nSCHEDULED: %^T\n:PROPERTIES:\n:CREATED: %u\n:END:\n%?"
-           :prepend t :empty-lines 1)
-
-          ("hi" "Home → Inbox (Todo)" entry
-           (file+headline ,mho/home-file "Inbox")
-           "** TODO %?\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("hp" "Home → Inbox (Project)" entry
-           (file+headline ,mho/home-file "Inbox")
-           "** PROJ %? :project:\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("hl" "Home → Inbox (Link)" entry
-           (file+headline ,mho/home-file "Inbox")
-           "** TODO %? :link:\nSource: %a\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("ha" "Home → Actions (Todo)" entry
-           (file+headline ,mho/home-file "Actions")
-           "** TODO %?\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("hP" "Home → Projects (Project)" entry
-           (file+headline ,mho/home-file "Projects")
-           "** PROJ %? :project:\n:PROPERTIES:\n:CREATED: %u\n:END:\n"
-           :prepend t :empty-lines 1)
-
-          ("hm" "Home → Meetings" entry
-           (file+headline ,mho/home-file "Meetings")
-           "** %^{Type|1:1|1:many} %^{Topic} :meet:\nSCHEDULED: %^T\n:PROPERTIES:\n:CREATED: %u\n:END:\n%?"
-           :prepend t :empty-lines 1))))
+  (require 'mho-vulpea-workflow)
+  (mho-vulpea-workflow-setup-captures))
 
 (setq calendar-week-start-day 1)
 (copy-face 'font-lock-constant-face 'calendar-iso-week-face)
@@ -769,9 +194,8 @@ Works in Dired (file at point) or Org buffers."
       (propertize "Wk" 'font-lock-face 'calendar-iso-week-header-face))
 
 (after! org
-  (setq org-todo-keywords
-        '((sequence "TODO(t)" "NEXT(n)" "LIVE(l)" "WAIT(w)" "SOME(s)" "|" "DONE(d)" "XOUT(x)")
-          (sequence "PROJ(p)" "|" "DONE(d)" "XOUT(x)")))
+  (require 'mho-vulpea-workflow)
+  (setq org-todo-keywords mho-vulpea-workflow-keywords)
 
   (setq org-todo-keyword-faces
         '(("TODO" . "#88C0D0")
@@ -784,7 +208,8 @@ Works in Dired (file at point) or Org buffers."
           ("XOUT" . "#4C566A"))))
 
 (after! org
-  (setq org-priority-faces
+  (setq org-priority-lowest ?F
+        org-priority-faces
         '((?A . (:foreground "#2ECC71" :weight bold))  ;; (Acute): High Value :: Low Cost
           (?B . (:foreground "#3498DB" :weight bold))  ;; (Build): High Value :: High Cost
           (?C . (:foreground "#F1C40F"))               ;; (Core): Low Value :: Low Cost
@@ -792,14 +217,11 @@ Works in Dired (file at point) or Org buffers."
           (?E . (:foreground "#9B59B6"))               ;; (Expand learn)
           (?F . (:foreground "#95A5A6")))))            ;; (Fluff & Finish)
 
-(setq org-agenda-todo-ignore-scheduled t
-      org-agenda-todo-ignore-deadlines t
-      org-agenda-skip-deadline-if-done t
+(setq org-agenda-skip-deadline-if-done t
       org-agenda-skip-scheduled-if-done t)
 
 (setq org-log-done 'time
-      org-log-into-drawer t
-      org-log-state-notes-insert-after-drawers nil)
+      org-log-into-drawer t)
 
 (setq org-archive-location "%s_archive::datetree/")
 
@@ -856,75 +278,59 @@ Works in Dired (file at point) or Org buffers."
 (use-package! org-transclusion
   :after org)
 
-(after! org-pomodoro
-  (setq org-pomodoro-start-sound
-        "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/head_gestures_double_nod.caf"
-        org-pomodoro-finished-sound
-        "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/payment_success.aif"
-        org-pomodoro-short-break-sound
-        "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/media_handoff.caf"
-        org-pomodoro-long-break-sound
-        "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/media_handoff.caf")
-
-  (defun mho/org-pomodoro-start-sound ()
-    (start-process-shell-command
-     "org-pomodoro-start-sound" nil "afplay /System/Library/Sounds/Glass.aiff"))
-
-  (defun mho/org-pomodoro-finished-sound ()
-    (start-process-shell-command
-     "org-pomodoro-finished-sound" nil "afplay /System/Library/Sounds/Blow.aiff"))
-
-  (defun mho/org-pomodoro-break-sound ()
-    (start-process-shell-command
-     "org-pomodoro-break-sound" nil "afplay /System/Library/Sounds/Bottle.aiff"))
-
-  (add-hook 'org-pomodoro-started-hook        #'mho/org-pomodoro-start-sound)
-  (add-hook 'org-pomodoro-finished-hook       #'mho/org-pomodoro-finished-sound)
-  (add-hook 'org-pomodoro-break-finished-hook #'mho/org-pomodoro-break-sound))
+(autoload 'mho/vulpios-habit-pomodoro "mho-vulpios-habit-focus" nil t)
+(autoload 'mho/vulpios-habit-stop "mho-vulpios-habit-focus" nil t)
+(autoload 'mho/vulpios-habit-break "mho-vulpios-habit-focus" nil t)
 
 (use-package! vulpea
   :after org
+  :demand t
+  :init
+  (setq vulpea-db-sync-directories (list org-directory)
+        vulpea-default-notes-directory org-directory
+        vulpea-db-location (expand-file-name "vulpea/icloud-org.db" doom-data-dir)
+        vulpea-create-default-template
+        '(:file-name "${id}--${slug}.org"
+          :tags ("inbox")
+          :properties (("CREATED" . "%<[%Y-%m-%d %a]>"))))
   :config
-  ;; (setq vulpea-directory (expand-file-name "~/Documents/roam-kb/")
-  ;;       vulpea-db-sync-directories '("~/Documents/roam-kb/")
-  ;;       vulpea-default-notes-directory "~/Documents/roam-kb/"
-  ;;       vulpea-buffer-alias-property "ROAM_ALIASES")
-
-  ;; Default file template (IDs are handled by your pool-based org-id-new system)
-(setq vulpea-create-default-template
-      '(:file-name "%(org-id-new)--${slug}.org"
-        :tags ("inbox")
-        :properties (("CREATED" . "%<[%Y-%m-%d]>"))))
-
+  (require 'mho-vulpea-workflow)
+  ;; The companion is optional; missing checkout or invalid opt-in must not
+  ;; stop ordinary Vulpea indexing. Identity and enablement remain local.
+  (mho-vulpea-workflow-start-exporter
+   (expand-file-name "vulpios-export-icloud-org/" doom-data-dir))
+  (setq vulpios-export-use-catalog-changes t)
   (vulpea-db-autosync-mode +1))
 
-(use-package! vulpea-journal
-  :after (vulpea vulpea-ui)
+(use-package! vulpea-para
+  :after vulpea
+  :demand t
   :config
-  (setq vulpea-journal-default-template
-        (lambda (date)
-          (let ((weekday (format-time-string "%u" date)))
-            (list
-             :file-name "journal/%Y-%m-%d.org"
-             :title (format-time-string "%Y-%m-%d Wk%V %A" date)
-             :tags '("journal")
-             :head "#+created: %<[%Y-%m-%d]>"
-             :body (if (member weekday '("6" "7"))
-                       "* Weekend\n\n"
-                     "* Work\n\n* Personal\n")))))
-  (vulpea-journal-setup))
+  (require 'mho-vulpea-para)
+  (mho-vulpea-para-setup)
+  (require 'mho-vulpea-projects)
+  (mho-vulpea-projects-setup)
+  (require 'mho-vulpea-library))
 
-(defun mho/vulpea-describe-with-id (note)
-  "Show ID in a fixed left column, then the title."
-  (let ((id (or (vulpea-note-id note) "----"))
-        (title (vulpea-note-title note)))
-    (format "%-6s%s" id title)))
+(use-package! vulpea-ui
+  :after vulpea
+  :demand t)
 
-(with-eval-after-load 'vulpea
-  (setq vulpea-select-describe-fn #'mho/vulpea-describe-with-id))
+(use-package! vulpea-journal
+  :after vulpea-ui
+  :demand t
+  :config
+  (require 'mho-vulpea-journal)
+  (mho-vulpea-journal-setup))
+
+(after! vulpea
+  (setq mho-vulpea-site-build-directory
+        (expand-file-name "vulpea-site/" doom-cache-dir)
+        mho-vulpea-site-repository (expand-file-name "~/GitHub/mholson/"))
+  (require 'mho-vulpea-site))
 
 (after! yasnippet
-  (setq yas-snippet-dirs (list (expand-file-name "~/.config/doom/snippets"))
+  (setq yas-snippet-dirs (list +snippets-dir)
         yas-triggers-in-field t)
   (yas-reload-all)
 
@@ -932,53 +338,6 @@ Works in Dired (file at point) or Org buffers."
   (define-key yas-keymap (kbd "TAB")       #'yas-next-field)
   (define-key yas-keymap (kbd "<tab>")     #'yas-next-field)
   (define-key yas-keymap (kbd "<backtab>") #'yas-prev-field))
-
-(setq org-roam-directory (expand-file-name "~/Documents/roam-kb"))
-
-(use-package! org-roam
-  :after org
-  :config
-  ;; Safer, simpler slug function (no external deps)
-  (cl-defmethod org-roam-node-slug ((node org-roam-node))
-    "Return the slug of NODE."
-    (let* ((title (org-roam-node-title node))
-           (s (downcase title)))
-      (setq s (replace-regexp-in-string "[^[:alnum:]]+" "-" s))
-      (setq s (replace-regexp-in-string "-\\{2,\\}" "-" s))
-      (setq s (replace-regexp-in-string "\\`-+\\|-+\\'" "" s))
-      s))
-
-  (setq org-roam-node-display-template
-        (concat "${id:4} ${title:*} "
-                (propertize "${tags:10}" 'face 'org-tag)))
-
-  ;; IMPORTANT: use the same function for filename and :ID:
-  (setq org-roam-capture-templates
-        '(("d" "default" plain "%?"
-           :target (file+head "%(mho/org-roam-id)--${slug}.org"
-                              ":PROPERTIES:\n:ID: %(mho/org-roam-id)\n:CREATED: %<[%Y-%m-%d]>\n:END:\n#+title: ${title}\n#+filetags: :inbox:\n\n")
-           :immediate-finish t
-           :unnarrowed t)))
-
-  (setq org-roam-dailies-capture-templates
-        '(("d" "default" plain "%?"
-           :target (file+head "%<%Y-%m-%d>.org"
-                              ":PROPERTIES:\n:ID: %<%Y-%m-%d>\n:END:\n#+title: Daily for %<%Y-%m-%d>\n\n")
-           :immediate-finish t
-           :unnarrowed t)))
-
-  (setq org-roam-file-ignore-regexp
-        (rx (or "resources" "typst" "daily" "anki" ".pdf" ".typ"))))
-
-(use-package! websocket :after org-roam)
-
-(use-package! org-roam-ui
-  :after org-roam
-  :config
-  (setq org-roam-ui-sync-theme t
-        org-roam-ui-follow t
-        org-roam-ui-update-on-save t
-        org-roam-ui-open-on-start t))
 
 (use-package laas
   :hook (LaTeX-mode . laas-mode)
@@ -992,15 +351,6 @@ Works in Dired (file at point) or Org buffers."
                     "dx" "\\dl x"
                     "dy" "\\dl y"))
 
-(use-package! lorem-ipsum)
-
-(use-package! typst-ts-mode
-  :mode ("\\.typ\\'" . typst-ts-mode))
-
-(setenv "PATH" "/usr/local/bin:/Library/TeX/texbin/:$PATH" t)
-
-(setq TeX-save-query nil)
-
 (setq TeX-show-compilation t)
 
 (setq TeX-command-extra-options "-shell-escape")
@@ -1008,7 +358,7 @@ Works in Dired (file at point) or Org buffers."
 (after! latex
   (add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex%(mode)%' %t" TeX-run-TeX nil t)))
 
-(setq +latex-viewers '(skim preview))
+(setq +latex-viewers '(skim))
 
 (setq TeX-view-program-list
       '(("Preview" "/usr/bin/open -a Preview.app %o")
@@ -1019,6 +369,4 @@ Works in Dired (file at point) or Org buffers."
         (output-pdf "Skim")
         (output-html "open")))
 
-(setq TeX-source-correlate-mode t
-      TeX-source-correlate-start-server t
-      TeX-source-correlate-method 'synctex)
+(setq TeX-source-correlate-start-server t)

@@ -1,0 +1,94 @@
+#+title: Vulpios and Doom workflow
+
+* Commands
+| Command | Doom key | Result |
+|---------+----------+--------|
+| vulpea-journal-today | SPC v j | Resolve today's saved journal before creating a day |
+| vulpea-journal-date | SPC v J | Resolve a selected date |
+| mho-vulpea-journal-focus | SPC v T f | Private Focus entry for today |
+| mho-vulpea-journal-reflection | SPC v T r | Private Reflection entry for today |
+| mho-vulpea-journal-weekly-review | SPC v T w | Private Weekly review entry for today |
+| mho-vulpea-journal-capture | M-x | Choose a preset and date, including backdated entries |
+| mho-vulpea-para-capture-project | SPC v P p | PROJ + project tag under an area's Tasks |
+| mho-vulpea-project-reconcile | M-x | Explicitly reconcile the PROJ at point from its descendants |
+| mho-vulpea-project-archive | SPC v P x | Select a complete project and archive it in place |
+| mho-vulpea-library-preview | SPC v N p | Show a generated starter without writing files |
+| mho-vulpea-library-initialize | SPC v N i | Create a starter only in an absent/empty folder |
+
+Finalize a preset with the normal Org capture command. The entry's UUID is generated
+once when capture starts. Entries are private by default; optional prompts are prose,
+not duplicate task lists. Link project actions from the journal to their area.
+
+* Existing libraries
+These workflow modules install policy and hooks without migrating, renaming or
+creating notes. Existing Vulpea autosync still maintains its index.
+An explicit journal command reads ordinary saved .org files under org-directory to
+find unindexed journals from another device; hidden directories, symlinks and backups
+are excluded. Canonical/configured path aliases, including macOS /var and /private/var,
+resolve to the same physical source identity. This source discovery is intentionally
+independent of asynchronous index freshness. It can take time in a large library.
+Only journal files are parsed and only the chosen file is refreshed through Vulpea's
+public database API.
+
+Existing daily files and custom dated IDs win over the default layout. A file's
+month title identifies a custom-named monthly container even if it has a CREATED
+property. Duplicate dates/IDs, dirty or stale journal buffers, incomplete source,
+unknown new-day layouts and a stale database entry for a deleted destination stop
+creation. Resolve the source ambiguity, or refresh Vulpea after removing a file,
+then retry. Existing dates in custom layouts can still be opened.
+
+Absent dates use their recognized month's plain/day or ISO-week/day layout. A new
+month uses journal/%Y-%m.org, week %V, newest-first, and a minimal Tasks section.
+Empty existing weeks are reused. Backdated week insertion does not move existing
+subtrees. Historical daily files are never converted.
+
+PROJ is a project role. Completion retains PROJ and adds CLOSED when all descendant
+tasks are DONE/XOUT; reopening a child removes CLOSED. Empty projects and empty nested
+projects remain incomplete. Archived unfinished descendants still block completion;
+commented/literal examples do not. Archive additionally requires closed, valid clocks
+and adds ARCHIVE to the existing project. It does not move or delete its content.
+Legacy DONE :project: headings remain readable; lifecycle commands do not convert them.
+
+Ordinary source saves reconcile only known projects whose descendants changed,
+preventing an unrelated prose save from stamping old projects. Incomplete/unsafe
+source drafts remain saveable, with a warning and no automatic lifecycle edit.
+After repairing such source, use the explicit reconcile command if needed.
+
+* A future new library
+Preview is read-only. Initialize refuses every nonempty target, including hidden
+files. It stages a complete snapshot beside the chosen target and renames it into
+place; it does not change org-directory, enable publication or select a mobile folder.
+The snapshot contains private Work/Home areas, existing capture targets, a linked
+review resource, empty journal/assets directories, and .vulpios/template-profile.json.
+Resources are nonarchived file-level notes, including areas; no resource tag is required.
+IDs are created once for the new snapshot. Select/configure this new folder only when
+ready; the current library remains intact.
+
+The shared profile is data, not executable Lisp. Its canonical copy is
+Companion/Templates/para-journal-v1.json in Vulpios. ERT compares it with the Doom
+constants; Swift checks the same profile. Existing libraries do not adopt it through
+an automatic migration.
+
+* Repeatable checks
+Run from this Doom configuration directory:
+#+begin_src sh :eval never
+EMACS=/path/to/emacs Tools/check-doom-tangle.sh
+VULPIOS_EMACS_LOAD_PATH=/path/to/vulpea:/path/to/other/dependencies \
+VULPIOS_TEMPLATE_PROFILE=/path/to/vulpios/Companion/Templates/para-journal-v1.json \
+emacs --batch -Q -l src/vulpea-para/check-workflow.el
+#+end_src
+
+Vulpios's Tools/check-emacs.sh runs its canonical exporter and profile tests; set
+DOOM_CONFIG_DIR to include this workflow suite, the Doom adapter migration suite,
+and exact tangle parity. Explicit
+load paths avoid reliance on personal package-manager layout. Tools/check-roundtrip.sh
+creates a fresh marked temporary library, runs real Emacs indexing/export, app model
+captures/project completion, and real Emacs reindexing/reopening/re-export. It retains
+temporary evidence and never selects the personal Org library.
+
+The current installed Vulpea/UI/Journal/vui/PARA revisions are pinned in packages.el.
+Newer Vulpea commit 74d77d11c11f93745fdf88e3a8d00599aee80960 is also tested in an isolated
+checkout and provides synchronous catch-up. No package installation, upgrade, Doom
+sync or personal Emacs restart is part of these checks. The current installed Vulpea
+supports export but requires an explicit completed index refresh before publication;
+the real synchronous catch-up test is clearly skipped on that version.

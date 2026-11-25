@@ -1,0 +1,32 @@
+{
+  "resources_url": "https://developer.apple.com/design/resources/",
+  "composition": "Original native screenshots and decorative HTML/CSS enclosures remain separate. Existing Apple PNG files are copied without pixel edits; portrait iPad orientation is applied in CSS.",
+  "assets": [
+    {
+      "file": "stillvaro-iphone-enclosure.png",
+      "original_name": "iPhone-17-Pro-Max-Silver.png",
+      "source": "Existing Stillvaro AppStore/Website-Updates/2026-10-10-device-bezels artwork",
+      "sha256": "171f0a393dc89af4b7d72ba13fe0faa210adec904debcb1657abade46d52792a",
+      "canvas_px": [1470, 3000],
+      "screen_aperture_xywh_px": [75, 66, 1320, 2868]
+    },
+    {
+      "file": "stillvaro-ipad-enclosure.png",
+      "original_name": "iPad-Pro-M5-13-Silver-Landscape.png",
+      "source": "Existing Stillvaro AppStore/Website-Updates/2026-10-10-device-bezels artwork",
+      "sha256": "d3c4cc8f58e0a7d3f40930d688330b7311926f83d81ce9c2cd34041b3b780f0a",
+      "canvas_px": [3000, 2300],
+      "screen_aperture_xywh_px": [124, 118, 2752, 2064]
+    }
+  ],
+  "duo": {
+    "source": "Neutral CSS enclosures around native expanded and outer-display captures; no official Duo artwork is used.",
+    "screen_px": [2853, 2007],
+    "surround_px": 70,
+    "outer_display": {
+      "landscape_screen_px": [2034, 1398],
+      "portrait_screen_px": [1398, 2034],
+      "surround_px": 50
+    }
+  }
+}

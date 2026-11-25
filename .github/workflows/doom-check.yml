@@ -1,0 +1,141 @@
+name: Doom workflow checks
+
+"on":
+  push:
+    paths:
+      - doom/.config/doom/**
+      - .github/workflows/doom-check.yml
+  pull_request:
+    paths:
+      - doom/.config/doom/**
+      - .github/workflows/doom-check.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: doom-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  doom:
+    name: Doom / Vulpea ${{ matrix.profile }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [installed, current]
+    defaults:
+      run:
+        shell: bash
+        working-directory: doom/.config/doom
+    steps:
+      - name: Check out dotfiles
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install batch test runtime on the disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y emacs-nox
+          emacs --batch -Q --eval '(unless (and (>= emacs-major-version 29) (fboundp (quote sqlite-available-p)) (sqlite-available-p)) (error "Tests require Emacs 29 or newer with SQLite support"))'
+          emacs --version
+
+      - name: Fetch exact reviewed dependency revisions into runner temp
+        env:
+          VULPEA_PROFILE: ${{ matrix.profile }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+
+          profile = os.environ["VULPEA_PROFILE"]
+          vulpea_refs = {
+              "installed": "f3af60a6dcfdababa74232b3b58fd44c511cfc4a",
+              "current": "74d77d11c11f93745fdf88e3a8d00599aee80960",
+          }
+          # This is a test dependency manifest, not an installation or upgrade.
+          # Keep refs aligned with packages.el and the Vulpios test lock when
+          # intentionally reviewing an upgrade. No exporter implementation is copied.
+          dependencies = [
+              ("vulpea", "d12frosted/vulpea", vulpea_refs[profile]),
+              ("vulpea-para", "d12frosted/vulpea-para", "c47ca23dd5d998236895571626b045f046d99659"),
+              ("vulpea-journal", "d12frosted/vulpea-journal", "f21acb42c73395defcedae281ceb1fbf505f20fb"),
+              ("vulpea-ui", "d12frosted/vulpea-ui", "c21204116b3cf3e921fa8f7849c932c8b0ad3181"),
+              ("vui.el", "d12frosted/vui.el", "d8e76e7ccc784ab0441caab04fcf36aba73f5bdb"),
+              ("emacsql", "magit/emacsql", "7a4c607912c8fdd1fca4def4915d68f43b12d4da"),
+              ("dash.el", "magnars/dash.el", "d746dd9edcb67a108818beb0cdc78dc1cb466832"),
+              ("s.el", "magnars/s.el", "d7c04b84d03481a1ed62ee13dbe595224ccbe57c"),
+          ]
+          runner_temp = Path(os.environ["RUNNER_TEMP"])
+          root = Path(tempfile.mkdtemp(prefix="doom-emacs-deps-", dir=runner_temp))
+          paths = []
+          manifest = []
+          for name, repository, commit in dependencies:
+              directory = root / name
+              directory.mkdir()
+              url = f"https://github.com/{repository}.git"
+              def git(*args):
+                  subprocess.run(["git", "-C", str(directory), *args], check=True)
+              git("init", "--quiet")
+              git("remote", "add", "origin", url)
+              git("fetch", "--quiet", "--depth=1", "origin", commit)
+              git("checkout", "--quiet", "--detach", "FETCH_HEAD")
+              actual = subprocess.check_output(
+                  ["git", "-C", str(directory), "rev-parse", "HEAD"], text=True
+              ).strip()
+              if actual != commit:
+                  raise RuntimeError(f"Unexpected revision for {name}: {actual}")
+              paths.append(str(directory))
+              manifest.append({"name": name, "url": url, "commit": actual})
+              print(f"Verified {name}: {actual}", flush=True)
+          (runner_temp / "doom-emacs-dependencies.json").write_text(
+              json.dumps({"profile": profile, "dependencies": manifest}, indent=2) + "\n"
+          )
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write("VULPIOS_EMACS_LOAD_PATH=" + os.pathsep.join(paths) + "\n")
+          PY
+
+      - name: Verify literate configuration parity without modifying checkout
+        run: Tools/check-doom-tangle.sh 2>&1 | tee "$RUNNER_TEMP/doom-tangle.log"
+
+      - name: Run isolated Org, PARA and journal regression tests
+        run: |
+          # A personal init, Doom installation, database and note folder are never used.
+          # The canonical Vulpios JSON profile is in another repository. Its parity
+          # test explicitly skips here; the other workflow/PARA tests still run.
+          emacs --batch -Q -l src/vulpea-para/check-workflow.el 2>&1 | tee "$RUNNER_TEMP/doom-workflow-tests.log"
+
+      - name: Record cross-repository coverage boundary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          Doom CI checks exact `config.org` → `config.el` parity and runs the isolated
+          Org/PARA/journal suite with explicitly pinned public dependencies.
+
+          The canonical Vulpios profile parity test is explicitly skipped in this
+          repository because `Companion/Templates/para-journal-v1.json` is unavailable.
+          The canonical exporter, Doom adapter migration, and Emacs → Swift → Emacs
+          round-trip checks remain the local cross-repository checks until the Vulpios
+          repository can be checked out by CI. No exporter/profile implementation is
+          duplicated here. Run Vulpios `Tools/check-emacs.sh` and
+          `Tools/check-roundtrip.sh` with `DOOM_CONFIG_DIR` for that coverage.
+          SUMMARY
+
+      - name: Retain test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: doom-${{ matrix.profile }}
+          path: |
+            ${{ runner.temp }}/doom-tangle.log
+            ${{ runner.temp }}/doom-workflow-tests.log
+            ${{ runner.temp }}/doom-emacs-dependencies.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -4,7 +4,7 @@
 # group: cTheorems
 # --
 
-#let ${1:`(mho/gen-id-snippet)`} = axiom("${2:term}", number: "$1")[
+#let ${1:`(progn (require 'org-id) (concat "n" (replace-regexp-in-string "-" "" (org-id-new))))`} = axiom("${2:term}", number: "$1")[
 $0
 ]
 #$1 // axim: $2
